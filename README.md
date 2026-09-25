@@ -34,7 +34,7 @@
 |---|---|
 | Арабски текст и превод (Цветан Теофанов) | [Quran.com API](https://quran.com) |
 | Турски превод (Diyanet İşleri) | [Tanzil.net](https://tanzil.net/trans/), чрез [fawazahmed0/quran-api](https://github.com/fawazahmed0/quran-api) — за некомерсиална употреба |
-| Шрифт | KFGQPC Uthmanic Hafs — Комплекс „Крал Фахд“, Медина |
+| Шрифт | KFGQPC Uthmanic Hafs — Комплекс „Крал Фахд“, Медина; Manrope и Cormorant Garamond (SIL OFL, `fonts/OFL.txt`) — на сайта, без Google Fonts |
 | Аудио | [EveryAyah.com](https://everyayah.com) |
 | Времена за намаз | [Главно мюфтийство](https://www.grandmufti.bg) |
 | Населени места | © [OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL) |

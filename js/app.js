@@ -263,7 +263,7 @@ async function render() {
   route = parse();
   closeSheet();
   // същата сура, друг айет — само превъртаме (обработчиците и наблюдателят остават)
-  if (route.name === 'surah' && prev.name === 'surah' && prev.s === route.s && route.a) { jumpTo(route.a); return; }
+  if (route.name === 'surah' && prev.name === 'surah' && prev.s === route.s && route.a) { prev.a = route.a; route = prev; jumpTo(route.a); return; }
   cleanup.forEach(f => f()); cleanup = [];
   document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === ({ surah: 'home', search: 'home', qibla: 'prayer' }[route.name] || route.name)));
   const mine = route;
@@ -286,6 +286,9 @@ window.addEventListener('scroll', stickyBar, { passive: true });
 const loadFail = () => `<div class="empty">Не успях да заредя текста. Проверете връзката и опитайте отново.<br><br><button class="btn" onclick="location.reload()">Опитай пак</button></div>`;
 
 // ---------- начало ----------
+function heroDate(now = new Date()) {
+  return `<b>${now.getDate()} ${BG_MONTHS[now.getMonth()]}</b>${BG_DAYS[now.getDay()]}<br><span style="color:var(--gold-ink)">${P.hijri(now)}</span>`;
+}
 let homeTab = 'surah';
 async function renderHome() {
   const now = new Date();
@@ -294,7 +297,7 @@ async function renderHome() {
     <header class="hero">
       <div class="hero-head">
         <h1 class="hero-title">Куран-и Керим<span>القرآن الكريم</span></h1>
-        <div class="hero-date"><b>${now.getDate()} ${BG_MONTHS[now.getMonth()]}</b>${BG_DAYS[now.getDay()]}<br><span style="color:var(--gold-ink)">${P.hijri(now)}</span></div>
+        <div class="hero-date">${heroDate()}</div>
       </div>
       <a class="next-card" href="#/prayer" id="nextCard"><div class="lbl">${icon('clock')} Времена за намаз</div><div class="row"><span class="nm">Изберете населено място</span></div><div class="cd">Всеки град и село в България</div></a>
       ${last ? `<a class="card continue" href="#/s/${last.s}/${last.a}"><span class="ic-wrap">${icon('book')}</span><div><small>Продължете четенето</small><b>${esc(S(last.s).name)}</b> <span class="muted">· айет ${last.a}</span></div>${icon('chev-r')}</a>` : ''}
@@ -344,13 +347,19 @@ async function homePrayer() {
   const place = store.get('place');
   if (!place) return;
   await P.loadPrayer();
+  let key = '';
   const tick = () => {
     const card = $('#nextCard'); if (!card) return;
     const np = P.nextPrayer(place, store.get('villageMode'));
-    card.innerHTML = `<div class="lbl">${icon('pin')} ${esc(P.placeLabel(place))}</div>
+    const k = np.i + '|' + np.day.join();
+    if (k !== key) { // картата е линк — сменяме я цялата само при ново време (виж railPrayer)
+      key = k;
+      card.innerHTML = `<div class="lbl">${icon('pin')} ${esc(P.placeLabel(place))}</div>
       <div class="row"><span class="nm">${P.PRAYERS[np.i].bg} <small style="font:500 14px var(--ui);opacity:.75">${P.PRAYERS[np.i].tr}</small></span><span class="tm">${P.fmt(np.at)}</span></div>
-      <div class="cd">след ${countdown(np.secsLeft, true)}</div>
+      <div class="cd"></div>
       <div class="mini">${P.PRAYERS.map((p, i) => `<div class="${i === np.i ? 'now' : ''}">${p.bg}<b>${P.fmt(np.day[i])}</b></div>`).join('')}</div>`;
+    }
+    card.querySelector('.cd').textContent = 'след ' + countdown(np.secsLeft, true);
   };
   tick(); const t = setInterval(tick, 1000); cleanup.push(() => clearInterval(t));
 }
@@ -579,9 +588,10 @@ async function renderPrayer() {
   if (route.q) { // връзка за споделяне: #/prayer/Рибново — само при точно едно съвпадение
     const q = route.q;
     history.replaceState(null, '', '#/prayer'); route.q = '';
-    try { await P.loadPlaces(); } catch (e) {}
+    let exact = [];
+    try { await P.loadPlaces(); exact = P.exactPlaces(q); } catch (e) {} // без интернет → изборът по-долу казва това
     if (stale()) return;
-    const exact = P.exactPlaces(q), towns = exact.filter(p => p.type === 0);
+    const towns = exact.filter(p => p.type === 0);
     const pick = exact.length === 1 ? exact[0] : towns.length === 1 ? towns[0] : null; // град и село със същото име → градът
     if (pick) store.set('place', P.placeRecord(pick));
     else if (q.trim()) { renderPrayer().then(() => placeSheet(q)); return; }
@@ -663,7 +673,7 @@ async function placeSheet(q0 = '') {
   const res = b.querySelector('#pRes');
   try { await P.loadPlaces(); await P.loadPrayer(); }
   catch (e) { res.innerHTML = '<div class="empty">Няма връзка с интернет. Списъкът с населени места ще се изтегли, когато се свържете.</div>'; return; }
-  if (!res.isConnected) return; // листът е затворен, докато се зареждаше
+  if (!res.isConnected || $('#sheet').hidden) return; // листът е затворен или сменен, докато се зареждаше
   const choose = p => { store.set('place', P.placeRecord(p)); pDay = 0; closeSheet(); toast(P.placeLabel(p)); if (route.name === 'prayer') renderPrayer(); else render(); };
   const draw = q => {
     const items = q ? P.searchPlaces(q) : P.officialPlaces();
@@ -737,7 +747,9 @@ async function renderQibla() {
     st.textContent = now ? '✓ Вие сте с лице към киблата' : `Завъртете се ${off > 0 ? 'надясно' : 'наляво'} с ${Math.round(Math.abs(off))}°`;
   };
   const start = async () => {
+    const mine = route;
     if (ask && !(await Q.askPermission())) { st.textContent = 'Няма разрешение за компаса. Разрешете „Движение и ориентация“ в настройките на браузъра.'; return; }
+    if (route !== mine) return; // напуснал е екрана, докато iPhone питаше
     $('#qStart')?.remove();
     if (touch) st.textContent = 'Търся компаса…';
     cleanup.push(Q.watchHeading(onHeading));
@@ -843,14 +855,22 @@ async function downloadAll() {
 }
 
 // ---------- странична лента: следващ намаз ----------
+// Линкът се строи наново само когато се смени времето; всяка секунда се сменя само текстът
+// на обратното броене — иначе кликът и фокусът се губят, ако попаднат между две секунди.
+let railKey = '';
 async function railPrayer() {
   const el = $('#railPrayer');
   if (getComputedStyle($('.rail')).display === 'none') return;
   const place = store.get('place');
-  if (!place) { el.innerHTML = ''; return; }
+  if (!place) { el.innerHTML = ''; railKey = ''; return; }
   await P.loadPrayer();
   const np = P.nextPrayer(place, store.get('villageMode'));
-  el.innerHTML = `<a class="card" href="#/prayer" style="display:block;padding:14px 16px"><small class="muted" style="font-size:12px">${esc(P.placeLabel(place))}</small><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px"><b style="font:700 19px var(--serif)">${P.PRAYERS[np.i].bg}</b><b style="color:var(--gold-ink);font-variant-numeric:tabular-nums">${P.fmt(np.at)}</b></div><small class="muted" style="font-size:12.5px">след ${countdown(np.secsLeft, true)}</small></a>`;
+  const key = JSON.stringify(place) + np.i + '|' + np.at;
+  if (key !== railKey || !el.querySelector('.rp-cd')) {
+    railKey = key;
+    el.innerHTML = `<a class="card" href="#/prayer" style="display:block;padding:14px 16px"><small class="muted" style="font-size:12px">${esc(P.placeLabel(place))}</small><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px"><b style="font:700 19px var(--serif)">${P.PRAYERS[np.i].bg}</b><b style="color:var(--gold-ink);font-variant-numeric:tabular-nums">${P.fmt(np.at)}</b></div><small class="muted rp-cd" style="font-size:12.5px"></small></a>`;
+  }
+  el.querySelector('.rp-cd').textContent = 'след ' + countdown(np.secsLeft, true);
 }
 setInterval(railPrayer, 1000); // показва секундите в последния час
 store.on(k => { if (k === 'place' || k === 'villageMode') railPrayer(); });
@@ -859,9 +879,11 @@ store.on(k => { if (k === 'place' || k === 'villageMode') railPrayer(); });
 let today = P.nowBG().d;
 setInterval(() => {
   const d = P.nowBG().d;
-  if (d === today || !$('#sheet').hidden) return; // при отворен лист — при следващата проверка
+  if (d === today) return;
   today = d;
-  if (['home', 'prayer', 'qibla'].includes(route.name)) { pDay = 0; render(); }
+  // само това, което зависи от датата: без затваряне на листове, превъртане или изтриване на търсенето
+  if (route.name === 'prayer' && pDay === 0) renderPrayer();
+  else if (route.name === 'home' && $('.hero-date')) $('.hero-date').innerHTML = heroDate();
 }, 15000);
 
 // ---------- старт ----------

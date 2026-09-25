@@ -16,6 +16,7 @@
   Търсенето винаги включва българския + избраните езици; турското сравнение приравнява I/ı/İ/i.
 - `data/prayer.json` — `base` (365 реда за София, зимно време UTC+2) + `towns` (48 града с `shift` в минути).
 - `data/places.json` — 6 911 населени места от OSM: `[име, 0 град/1 село/2 махала, lat, lon, област, община]`.
+- Шрифтове: всички са в `fonts/` (Manrope, Cormorant Garamond — поднабори latin/latin-ext/cyrillic от @fontsource-variable; лиценз `fonts/OFL.txt`). Без Google Fonts.
 - `sw.js` — офлайн. Код: мрежа първо (4 сек таймаут → кеш), `qk-shell-vN`. Текст/шрифт: кеш първо в `qk-data-v1` —
   увеличи го САМО при поправка на текст в `data/s/`, `data/tr/` или `places.json` (всички потребители ще изтеглят наново ~4 MB).
 
@@ -35,7 +36,9 @@
 - `fetch-quran.mjs`, `split-quran.mjs`, `build-places.mjs`, `fetch-muftiate.mjs`, `fit.mjs`… — еднократни, за пресъздаване на данните.
 
 ## Облачна сесия (claude.ai/code)
-- Изходящата мрежа е ограничена: grandmufti.bg, everyayah.com и Google Fonts са блокирани — update-prayer и check-reciters не могат да се пуснат там.
+- Изходящата мрежа е ограничена: grandmufti.bg, everyayah.com, quran.com са блокирани — update-prayer и check-reciters не могат да се пуснат там.
+  Достъпни са npm и raw.githubusercontent.com (оттам е турският превод).
+- НЕ ползвай `pkill -f <шаблон>` — съвпада и с текста на собствената команда и убива обвивката.
 - Тест в браузър: глобален Playwright (`NODE_PATH=/opt/node22/lib/node_modules`) + `node tools/serve.mjs 8931`;
   компасът се симулира с `new DeviceOrientationEvent('deviceorientationabsolute', { alpha, absolute: true })`.
 
