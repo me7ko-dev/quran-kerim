@@ -28,9 +28,12 @@ function applyPrefs() {
   if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   document.documentElement.style.setProperty('--ar', store.get('arSize') + 'px');
   document.documentElement.style.setProperty('--trs', store.get('trSize') + 'px');
-  const meta = document.querySelectorAll('meta[name=theme-color]');
+  // цветът на лентата на браузъра: по избраната тема, а при „Авто“ — първоначалните по системната
   const bg = getComputedStyle(document.body).getPropertyValue('--bg').trim();
-  if (t !== 'auto' && bg) meta.forEach(m => m.setAttribute('content', bg));
+  document.querySelectorAll('meta[name=theme-color]').forEach(m => {
+    m.dataset.auto ??= m.getAttribute('content');
+    m.setAttribute('content', t !== 'auto' && bg ? bg : m.dataset.auto);
+  });
 }
 
 // ---------- toast и sheet ----------
@@ -39,26 +42,35 @@ function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400);
 }
-let sheetClose = null;
+let sheetClose = null, sheetReturn = null;
 function openSheet(html, onClose) {
-  $('#sheetBody').onclick = null; // обработчикът на предишния лист
-  $('#sheetBody').innerHTML = html;
-  $('#sheet').hidden = false; $('#scrim').hidden = false;
+  const sh = $('#sheet'), body = $('#sheetBody');
+  body.onclick = null; // обработчикът на предишния лист
+  body.innerHTML = html;
+  body.scrollTop = 0;
+  if (sh.hidden) sheetReturn = document.activeElement; // лист от лист: връщаме се към първоначалния бутон
+  sh.hidden = false; $('#scrim').hidden = false;
+  sh.setAttribute('aria-label', body.querySelector('h3')?.textContent || '');
+  $('.app').inert = true; // фонът не се фокусира и екранните четци го пропускат
   document.body.style.overflow = 'hidden';
   sheetClose = onClose || null;
-  return $('#sheetBody');
+  sh.focus({ preventScroll: true });
+  return body;
 }
 function closeSheet() {
   if ($('#sheet').hidden) return;
   $('#sheet').hidden = true; $('#scrim').hidden = true; document.body.style.overflow = '';
+  $('.app').inert = false;
+  const r = sheetReturn; sheetReturn = null;
+  if (r && r.isConnected) r.focus({ preventScroll: true });
   const f = sheetClose; sheetClose = null; f && f();
 }
 $('#scrim').addEventListener('click', closeSheet);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
-// плъзгане надолу затваря листа на телефон
+// плъзгане надолу затваря листа на телефон (на таблет листът е в средата на екрана)
 (() => {
-  const sh = $('#sheet'); let y0 = null, dy = 0;
-  sh.addEventListener('touchstart', e => { if ($('#sheetBody').scrollTop <= 0) { y0 = e.touches[0].clientY; dy = 0; } }, { passive: true });
+  const sh = $('#sheet'), phone = matchMedia('(max-width: 699px)'); let y0 = null, dy = 0;
+  sh.addEventListener('touchstart', e => { if (phone.matches && $('#sheetBody').scrollTop <= 0) { y0 = e.touches[0].clientY; dy = 0; } }, { passive: true });
   sh.addEventListener('touchmove', e => { if (y0 == null) return; dy = e.touches[0].clientY - y0; if (dy > 0) sh.style.transform = `translateY(${dy}px)`; }, { passive: true });
   sh.addEventListener('touchend', () => { if (y0 == null) return; sh.style.transform = ''; if (dy > 90) closeSheet(); y0 = null; });
 })();
@@ -115,7 +127,15 @@ let lastFollowed = '';
 player.addEventListener('state', syncPlayer);
 player.addEventListener('time', e => { $('#plProg').style.width = (e.detail * 100).toFixed(1) + '%'; });
 player.addEventListener('fail', () => toast('Аудиото не се зареди. Проверете интернет връзката.'));
-player.addEventListener('end', () => { if (player.mode === 'range') toast('Откъсът е прочетен докрай'); if (player.cur && route.name === 'surah' && route.s !== player.cur.s && store.get('follow')) go(`#/s/${player.cur.s}`); });
+player.addEventListener('end', () => { if (player.mode === 'range') toast('Откъсът е прочетен докрай'); });
+// „Следи айета“: когато четенето премине в следващата сура, страницата я отваря —
+// само ако читателят гледа сурата, която току-що е свършила
+let followS = null;
+player.addEventListener('state', () => {
+  const c = player.cur;
+  if (c && followS && c.s !== followS && store.get('follow') && route.name === 'surah' && route.s === followS) go(`#/s/${c.s}`);
+  followS = c ? c.s : null;
+});
 $('#plPlay').onclick = () => player.toggle();
 $('#plPrev').onclick = () => player.step(-1);
 $('#plNext').onclick = () => player.step(1);
@@ -195,8 +215,13 @@ function reciterSheet(after) {
 let route = { name: 'home' };
 function parse() {
   const h = location.hash.replace(/^#\/?/, '').split('/');
-  if (h[0] === 's' && +h[1] >= 1 && +h[1] <= 114) return { name: 'surah', s: +h[1], a: +h[2] || 0 };
-  if (['prayer', 'qibla', 'bookmarks', 'settings', 'search'].includes(h[0])) return { name: h[0], q: decodeURIComponent(h[1] || '') };
+  const s = +h[1];
+  if (h[0] === 's' && Number.isInteger(s) && s >= 1 && s <= 114) return { name: 'surah', s, a: Math.max(0, Math.floor(+h[2]) || 0) };
+  if (['prayer', 'qibla', 'bookmarks', 'settings', 'search'].includes(h[0])) {
+    let q = h.slice(1).join('/');
+    try { q = decodeURIComponent(q); } catch (e) {} // счупен адрес (напр. „100%“) — оставяме го както е
+    return { name: h[0], q };
+  }
   return { name: 'home' };
 }
 function go(h) { if (location.hash === h) render(); else location.hash = h; }
@@ -206,22 +231,25 @@ let cleanup = [];
 async function render() {
   const prev = route;
   route = parse();
-  cleanup.forEach(f => f()); cleanup = [];
   closeSheet();
-  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === ({ surah: 'home', search: 'home', qibla: 'prayer' }[route.name] || route.name)));
-  await loadMeta();
+  // същата сура, друг айет — само превъртаме (обработчиците и наблюдателят остават)
   if (route.name === 'surah' && prev.name === 'surah' && prev.s === route.s && route.a) { jumpTo(route.a); return; }
+  cleanup.forEach(f => f()); cleanup = [];
+  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === ({ surah: 'home', search: 'home', qibla: 'prayer' }[route.name] || route.name)));
+  const mine = route;
+  await loadMeta();
+  if (route !== mine) return; // адресът се смени, докато чакахме — по-новото прерисуване печели
   const r = { home: renderHome, surah: renderSurah, prayer: renderPrayer, qibla: renderQibla, bookmarks: renderBookmarks, settings: renderSettings, search: renderSearch }[route.name];
   await r();
+  if (route !== mine) return;
   if (route.name !== 'surah') window.scrollTo(0, 0);
   syncPlayer();
   stickyBar();
 }
-function stickyBar() {
-  const tb = $('.topbar'); if (!tb) return;
-  const f = () => tb.classList.toggle('stuck', window.scrollY > 8);
-  f(); window.addEventListener('scroll', f, { passive: true }); cleanup.push(() => window.removeEventListener('scroll', f));
-}
+const stickyBar = () => $('.topbar')?.classList.toggle('stuck', window.scrollY > 8);
+window.addEventListener('scroll', stickyBar, { passive: true });
+
+const loadFail = () => `<div class="empty">Не успях да заредя текста. Проверете връзката и опитайте отново.<br><br><button class="btn" onclick="location.reload()">Опитай пак</button></div>`;
 
 // ---------- начало ----------
 let homeTab = 'surah';
@@ -232,15 +260,15 @@ async function renderHome() {
     <header class="hero">
       <div class="hero-head">
         <h1 class="hero-title">Куран-и Керим<span>القرآن الكريم</span></h1>
-        <div class="hero-date"><b>${now.getDate()} ${BG_MONTHS[now.getMonth()]}</b>${BG_DAYS[now.getDay()]}<br><span style="color:var(--gold)">${P.hijri(now)}</span></div>
+        <div class="hero-date"><b>${now.getDate()} ${BG_MONTHS[now.getMonth()]}</b>${BG_DAYS[now.getDay()]}<br><span style="color:var(--gold-ink)">${P.hijri(now)}</span></div>
       </div>
       <a class="next-card" href="#/prayer" id="nextCard"><div class="lbl">${icon('clock')} Времена за намаз</div><div class="row"><span class="nm">Изберете населено място</span></div><div class="cd">Всеки град и село в България</div></a>
       ${last ? `<a class="card continue" href="#/s/${last.s}/${last.a}"><span class="ic-wrap">${icon('book')}</span><div><small>Продължете четенето</small><b>${esc(S(last.s).name)}</b> <span class="muted">· айет ${last.a}</span></div>${icon('chev-r')}</a>` : ''}
-      <label class="search">${icon('search')}<input id="q" type="search" placeholder="Сура, номер или 2:255, дума от превода…" autocomplete="off" enterkeyhint="search"></label>
+      <label class="search">${icon('search')}<input id="q" type="search" placeholder="Сура, 2:255 или дума…" autocomplete="off" enterkeyhint="search"></label>
     </header>
     <div class="list-head">
       <h2 id="listTitle">Сури</h2>
-      <div class="seg" role="tablist"><button data-t="surah" class="${homeTab === 'surah' ? 'on' : ''}">Сури</button><button data-t="juz" class="${homeTab === 'juz' ? 'on' : ''}">Джузове</button></div>
+      <div class="seg"><button data-t="surah" class="${homeTab === 'surah' ? 'on' : ''}" aria-pressed="${homeTab === 'surah'}">Сури</button><button data-t="juz" class="${homeTab === 'juz' ? 'on' : ''}" aria-pressed="${homeTab === 'juz'}">Джузове</button></div>
     </div>
     <div class="grid" id="list"></div>
     <div id="searchMore"></div>
@@ -264,8 +292,9 @@ async function renderHome() {
     $('#searchMore').innerHTML = '';
   };
   const draw = () => { $('#listTitle').textContent = homeTab === 'surah' ? 'Сури' : 'Джузове'; homeTab === 'surah' ? drawSurahs($('#q').value) : drawJuz(); };
-  view.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { homeTab = b.dataset.t; view.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x === b)); draw(); });
-  $('#q').addEventListener('input', e => { if (homeTab !== 'surah') { homeTab = 'surah'; view.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x.dataset.t === 'surah')); } drawSurahs(e.target.value); });
+  const setTab = t => { homeTab = t; view.querySelectorAll('[data-t]').forEach(x => { x.classList.toggle('on', x.dataset.t === t); x.setAttribute('aria-pressed', x.dataset.t === t); }); };
+  view.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { setTab(b.dataset.t); draw(); });
+  $('#q').addEventListener('input', e => { if (homeTab !== 'surah') setTab('surah'); drawSurahs(e.target.value); });
   $('#q').addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     const v = e.target.value.trim();
@@ -287,7 +316,7 @@ async function homePrayer() {
     card.innerHTML = `<div class="lbl">${icon('pin')} ${esc(P.placeLabel(place))}</div>
       <div class="row"><span class="nm">${P.PRAYERS[np.i].bg} <small style="font:500 14px var(--ui);opacity:.75">${P.PRAYERS[np.i].tr}</small></span><span class="tm">${P.fmt(np.at)}</span></div>
       <div class="cd">след ${countdown(np.secsLeft, true)}</div>
-      <div class="mini">${P.PRAYERS.map((p, i) => `<div class="${i === np.i ? 'now' : ''}">${p.bg}<b>${P.fmt(np.today[i])}</b></div>`).join('')}</div>`;
+      <div class="mini">${P.PRAYERS.map((p, i) => `<div class="${i === np.i ? 'now' : ''}">${p.bg}<b>${P.fmt(np.day[i])}</b></div>`).join('')}</div>`;
   };
   tick(); const t = setInterval(tick, 1000); cleanup.push(() => clearInterval(t));
 }
@@ -305,7 +334,7 @@ async function renderSurah() {
     <button class="ib" id="tSize" aria-label="Размер на шрифта">${icon('text')}</button>
     <button class="ib" id="tView" aria-label="Изглед">${icon('book')}</button></div><div class="loader"></div>`;
   let ayahs;
-  try { ayahs = await loadSurah(n); } catch (e) { view.querySelector('.loader').outerHTML = `<div class="empty">Не успях да заредя сурата. Проверете връзката и опитайте отново.<br><br><button class="btn" onclick="location.reload()">Опитай пак</button></div>`; return; }
+  try { ayahs = await loadSurah(n); } catch (e) { if (route.name === 'surah' && route.s === n) view.querySelector('.loader').outerHTML = loadFail(); return; }
   if (route.name !== 'surah' || route.s !== n) return;
   const mode = store.get('mode');
   const showTr = store.get('showTr');
@@ -340,8 +369,8 @@ async function renderSurah() {
   view.querySelector('.loader').outerHTML = head + body + nav;
 
   view.querySelector('.surah-play').onclick = () => {
-    if (player.cur && player.cur.s === n) { player.toggle(); return; }
-    player.play(n, 1, player.mode === 'continue' ? 'continue' : 'continue'); store.set('play', 'continue');
+    if (player.cur && player.cur.s === n && !player.done) { player.toggle(); return; }
+    player.play(n, 1, 'continue'); store.set('play', 'continue');
   };
   $('#recBtn').onclick = () => reciterSheet(() => { $('#recBtn span').textContent = reciterById(player.reciter).name; });
   $('#tSize').onclick = sizeSheet;
@@ -350,9 +379,10 @@ async function renderSurah() {
   cleanup.push(() => view.removeEventListener('click', ayahClick));
 
   // запомняме докъде е стигнал читателят
+  const vis = new Set(); // айетите в горната част на екрана в момента
   const io = new IntersectionObserver(es => {
-    const vis = es.filter(e => e.isIntersecting).map(e => +e.target.dataset.a);
-    if (vis.length) { const a = Math.min(...vis); clearTimeout(saveT); saveT = setTimeout(() => store.set('last', { s: n, a }), 600); }
+    es.forEach(e => e.isIntersecting ? vis.add(+e.target.dataset.a) : vis.delete(+e.target.dataset.a));
+    if (vis.size) { const a = Math.min(...vis); clearTimeout(saveT); saveT = setTimeout(() => store.set('last', { s: n, a }), 600); }
   }, { rootMargin: '-80px 0px -55% 0px' });
   view.querySelectorAll('[data-a]').forEach(e => io.observe(e));
   cleanup.push(() => io.disconnect());
@@ -424,9 +454,9 @@ async function ayahSheet(s, a) {
 function sizeSheet() {
   const b = openSheet(`<h3>Размер на текста</h3>
     <p class="preview-ar" lang="ar">${BISM}</p>
-    <div class="set-row" style="padding:10px 0"><div class="mid"><b>Арабски текст</b><small id="arV">${store.get('arSize')} px</small></div><input class="range" id="arR" type="range" min="22" max="64" step="1" value="${store.get('arSize')}"></div>
+    <div class="set-row" style="padding:10px 0"><div class="mid"><b>Арабски текст</b><small id="arV">${store.get('arSize')} px</small></div><input class="range" id="arR" type="range" min="22" max="64" step="1" value="${store.get('arSize')}" aria-label="Размер на арабския текст"></div>
     <p class="preview-tr">В името на Аллах, Всемилостивия, Милосърдния!</p>
-    <div class="set-row" style="padding:10px 0;border:0"><div class="mid"><b>Превод</b><small id="trV">${store.get('trSize')} px</small></div><input class="range" id="trR" type="range" min="13" max="28" step="1" value="${store.get('trSize')}"></div>`);
+    <div class="set-row" style="padding:10px 0;border:0"><div class="mid"><b>Превод</b><small id="trV">${store.get('trSize')} px</small></div><input class="range" id="trR" type="range" min="13" max="28" step="1" value="${store.get('trSize')}" aria-label="Размер на превода"></div>`);
   b.querySelector('#arR').oninput = e => { store.set('arSize', +e.target.value); b.querySelector('#arV').textContent = e.target.value + ' px'; applyPrefs(); };
   b.querySelector('#trR').oninput = e => { store.set('trSize', +e.target.value); b.querySelector('#trV').textContent = e.target.value + ' px'; applyPrefs(); };
 }
@@ -453,7 +483,9 @@ function viewSheet() {
 async function renderSearch() {
   const q = route.q;
   view.innerHTML = `<div class="topbar"><button class="ib" onclick="history.back()" aria-label="Назад">${icon('chev-l')}</button><h1>Търсене<small>„${esc(q)}“</small></h1></div><div class="loader"></div>`;
-  const all = await Promise.all(META.surahs.map(s => loadSurah(s.n)));
+  let all;
+  try { all = await Promise.all(META.surahs.map(s => loadSurah(s.n))); }
+  catch (e) { if (route.name === 'search') view.querySelector('.loader').outerHTML = loadFail(); return; }
   if (route.name !== 'search') return;
   const nq = q.toLowerCase();
   const res = [];
@@ -467,8 +499,11 @@ async function renderSearch() {
 async function renderBookmarks() {
   const bms = store.get('bookmarks');
   view.innerHTML = `<div class="topbar"><h1>Отметки</h1></div><div id="bmList"><div class="loader"></div></div>`;
-  if (!bms.length) { $('#bmList').innerHTML = `<div class="empty">${icon('bookmark')}<p>Още нямате отметки.<br>Докоснете ${'⋯'} до айет и изберете „Отметка“.</p></div>`; return; }
-  const items = await Promise.all(bms.map(async b => ({ ...b, ay: (await loadSurah(b.s))[b.a - 1] })));
+  if (!bms.length) { $('#bmList').innerHTML = `<div class="empty">${icon('bookmark')}<p>Още нямате отметки.<br>Докоснете знака за отметка до айет.</p></div>`; return; }
+  let items;
+  try { items = await Promise.all(bms.map(async b => ({ ...b, ay: (await loadSurah(b.s))[b.a - 1] }))); }
+  catch (e) { if ($('#bmList')) $('#bmList').innerHTML = loadFail(); return; }
+  if (route.name !== 'bookmarks') return;
   $('#bmList').innerHTML = items.map(b => `<div class="card bm-item fade-in"><div class="top"><a class="ayah-key" href="#/s/${b.s}/${b.a}">${esc(S(b.s).name)} ${b.s}:${b.a}</a>
       <span><button class="ib" data-p="${b.s}:${b.a}" aria-label="Слушай">${icon('play')}</button><button class="ib" data-r="${b.s}:${b.a}" aria-label="Премахни">${icon('x')}</button></span></div>
       <a href="#/s/${b.s}/${b.a}"><p class="ar-text" lang="ar">${b.ay[0]}</p><p class="tr-text" style="font-size:15px">${esc(b.ay[1])}</p></a></div>`).join('');
@@ -481,15 +516,23 @@ async function renderBookmarks() {
 
 // ---------- намаз ----------
 let pDay = 0, showMonth = false;
+let prayerTimer = 0, prayerSeq = 0;
 async function renderPrayer() {
+  clearInterval(prayerTimer); // renderPrayer се вика и директно (ден напред/назад, смяна на място)
+  const seq = ++prayerSeq, stale = () => seq !== prayerSeq || route.name !== 'prayer';
   view.innerHTML = `<div class="topbar"><h1>Времена за намаз</h1><a class="ib" href="#/qibla" aria-label="Кибла">${icon('compass')}</a><button class="ib" id="locBtn" aria-label="Намери ме">${icon('locate')}</button></div><div class="loader"></div>`;
   await P.loadPrayer();
+  if (stale()) return;
   $('#locBtn').onclick = locate;
-  if (route.q) { // връзка за споделяне: #/prayer/Рибново
-    await P.loadPlaces();
-    const p = P.searchPlaces(route.q, 1)[0];
-    if (p) store.set('place', { name: p.name, type: p.type, lat: p.lat, lon: p.lon, obl: p.obl, obs: p.obs });
+  if (route.q) { // връзка за споделяне: #/prayer/Рибново — само при точно едно съвпадение
+    const q = route.q;
     history.replaceState(null, '', '#/prayer'); route.q = '';
+    try { await P.loadPlaces(); } catch (e) {}
+    if (stale()) return;
+    const exact = P.exactPlaces(q), towns = exact.filter(p => p.type === 0);
+    const pick = exact.length === 1 ? exact[0] : towns.length === 1 ? towns[0] : null; // град и село със същото име → градът
+    if (pick) store.set('place', P.placeRecord(pick));
+    else if (q.trim()) { renderPrayer().then(() => placeSheet(q)); return; }
   }
   const place = store.get('place');
   if (!place) { askPlace('Времената се изчисляват по официалния календар на Главно мюфтийство за всеки град и село в България.'); return; }
@@ -515,6 +558,7 @@ async function renderPrayer() {
     <div class="card note">${sourceNote(place, r)}</div>
   </div>`;
   $('#placeBtn').onclick = placeSheet;
+  setTimeout(() => P.loadPlaces().catch(() => {}), 2500); // за смяна на мястото и без интернет по-късно
   $('#dPrev').onclick = () => { pDay--; renderPrayer(); };
   $('#dNext').onclick = () => { pDay++; renderPrayer(); };
   $('#today') && ($('#today').onclick = () => { pDay = 0; renderPrayer(); });
@@ -528,7 +572,8 @@ async function renderPrayer() {
     const curI = isToday ? r.times.filter(t => t <= nowMin).length - 1 : -1;
     $('#times').innerHTML = P.PRAYERS.map((p, i) => `<div class="trow ${i === curI ? 'now' : i < curI ? 'past' : ''}"><span class="tic">${p.ic}</span><span class="mid"><b>${p.bg}</b><small>${p.tr}</small></span><span class="t">${P.fmt(r.times[i])}</span></div>`).join('');
   };
-  tick(); const t = setInterval(tick, 1000); cleanup.push(() => clearInterval(t));
+  tick(); prayerTimer = setInterval(tick, 1000); cleanup.push(() => clearInterval(prayerTimer));
+  stickyBar();
 }
 function askPlace(text) {
   view.querySelector('.loader').outerHTML = `<div class="card empty fade-in" style="margin-top:10px">${icon('pin')}<h3 style="font:700 22px var(--serif);color:var(--text);margin:6px 0">Къде се намирате?</h3>
@@ -537,7 +582,7 @@ function askPlace(text) {
   $('#gl').onclick = locate; $('#pick').onclick = placeSheet;
 }
 function sourceNote(place, r) {
-  const src = `<a href="https://www.grandmufti.bg/bg/home/vremena-za-namaz.html" target="_blank" rel="noopener" style="color:var(--accent)">Главно мюфтийство</a>`;
+  const src = `<a href="https://www.grandmufti.bg/bg/home/vremena-za-namaz.html" target="_blank" rel="noopener">Главно мюфтийство</a>`;
   return sourceText(place, r, src) + (P.checkedOn() ? ` Календарът е сверен с Мюфтийството на ${P.checkedOn()}` : '');
 }
 function sourceText(place, r, src) {
@@ -558,14 +603,16 @@ function drawMonth(place, y, m, vm) {
   }
   $('#month').innerHTML = `<div class="card month-wrap"><table class="month"><thead><tr><th>Ден</th>${P.PRAYERS.map(p => `<th>${p.bg.replace('Следобяд', 'Следоб.')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
-async function placeSheet() {
+async function placeSheet(q0 = '') {
   const b = openSheet(`<h3>Населено място</h3>
-    <label class="search" style="box-shadow:none">${icon('search')}<input id="pq" type="search" placeholder="Град или село (напр. Рибново)" autocomplete="off"></label>
+    <label class="search" style="box-shadow:none">${icon('search')}<input id="pq" type="search" placeholder="Град или село (напр. Рибново)" autocomplete="off" aria-label="Търсене на населено място" value="${esc(typeof q0 === 'string' ? q0 : '')}"></label>
     <button class="act wide" id="pLoc" style="width:100%;margin:10px 0 4px">${icon('locate')}Намери ме по местоположение</button>
     <div id="pRes" class="opt-list" style="margin-top:8px"><div class="loader"></div></div>`);
-  await P.loadPlaces(); await P.loadPrayer();
   const res = b.querySelector('#pRes');
-  const choose = p => { store.set('place', { name: p.name, type: p.type, lat: p.lat, lon: p.lon, obl: p.obl, obs: p.obs }); pDay = 0; closeSheet(); toast(P.placeLabel(p)); if (route.name === 'prayer') renderPrayer(); else render(); };
+  try { await P.loadPlaces(); await P.loadPrayer(); }
+  catch (e) { res.innerHTML = '<div class="empty">Няма връзка с интернет. Списъкът с населени места ще се изтегли, когато се свържете.</div>'; return; }
+  if (!res.isConnected) return; // листът е затворен, докато се зареждаше
+  const choose = p => { store.set('place', P.placeRecord(p)); pDay = 0; closeSheet(); toast(P.placeLabel(p)); if (route.name === 'prayer') renderPrayer(); else render(); };
   const draw = q => {
     const items = q ? P.searchPlaces(q) : P.officialPlaces();
     res.innerHTML = (q ? '' : '<div class="sub">Градове с официален календар — или потърсете село</div>') + (items.map((p, i) => `<button class="opt" data-i="${i}">${icon('pin')}<span class="mid"><b>${esc(P.placeLabel(p))}</b><small>${esc(P.placeSub(p))}</small></span></button>`).join('') || '<div class="empty">Няма такова населено място.</div>');
@@ -573,19 +620,19 @@ async function placeSheet() {
   };
   b.querySelector('#pq').addEventListener('input', e => draw(e.target.value));
   b.querySelector('#pLoc').onclick = () => { closeSheet(); locate(); };
-  draw('');
+  draw(b.querySelector('#pq').value);
   if (matchMedia('(min-width: 700px)').matches) b.querySelector('#pq').focus();
 }
 function locate() {
   if (!navigator.geolocation) { toast('Устройството не поддържа местоположение'); return; }
   toast('Търся местоположението…');
   navigator.geolocation.getCurrentPosition(async pos => {
-    await P.loadPlaces(); await P.loadPrayer();
+    try { await P.loadPlaces(); await P.loadPrayer(); } catch (e) { toast('Няма връзка с интернет'); return; }
     const { latitude: lat, longitude: lon } = pos.coords;
     const near = P.nearestPlace(lat, lon);
     if (!near || near.km > 30 || lat < 41 || lat > 44.4 || lon < 22.2 || lon > 28.8) { toast('Изглежда сте извън България — изберете място от списъка'); placeSheet(); return; }
     const p = near.p;
-    store.set('place', { name: p.name, type: p.type, lat: p.lat, lon: p.lon, obl: p.obl, obs: p.obs });
+    store.set('place', P.placeRecord(p));
     toast('Намерено: ' + P.placeLabel(p));
     pDay = 0;
     route.name === 'prayer' ? renderPrayer() : render();
@@ -661,26 +708,26 @@ function dialSvg(bearing) {
 
 // ---------- настройки ----------
 function renderSettings() {
-  const sw = (k, on) => `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${on}"></button>`;
+  const sw = (k, on, label) => `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${on}" aria-label="${label}"></button>`;
   view.innerHTML = `<div class="topbar"><h1>Настройки</h1></div>
   <div class="fade-in">
     <div class="sub">Външен вид</div>
     <div class="card set-group">
-      <div class="set-row"><div class="mid"><b>Тема</b></div><div class="seg">${[['auto', 'Авто'], ['light', 'Светла'], ['sepia', 'Сепия'], ['dark', 'Тъмна']].map(([k, t]) => `<button data-theme="${k}" class="${store.get('theme') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
-      <div class="set-row"><p class="preview-ar" lang="ar">ٱلۡحَمۡدُ لِلَّهِ رَبِّ ٱلۡعَٰلَمِينَ ٢</p><div class="mid"><b>Арабски шрифт</b><small id="arV">${store.get('arSize')} px</small></div><input class="range" id="arR" type="range" min="22" max="64" value="${store.get('arSize')}"></div>
-      <div class="set-row"><p class="preview-tr">Хвала на Аллах, Господа на световете,</p><div class="mid"><b>Превод</b><small id="trV">${store.get('trSize')} px</small></div><input class="range" id="trR" type="range" min="13" max="28" value="${store.get('trSize')}"></div>
-      <div class="set-row"><div class="mid"><b>Показвай превода</b><small>Превод на Цветан Теофанов</small></div>${sw('showTr', store.get('showTr'))}</div>
+      <div class="set-row"><div class="mid"><b>Тема</b></div><div class="seg theme-seg">${[['auto', 'Авто'], ['light', 'Светла'], ['sepia', 'Сепия'], ['dark', 'Тъмна']].map(([k, t]) => `<button data-theme="${k}" class="${store.get('theme') === k ? 'on' : ''}" aria-pressed="${store.get('theme') === k}">${t}</button>`).join('')}</div></div>
+      <div class="set-row"><p class="preview-ar" lang="ar">ٱلۡحَمۡدُ لِلَّهِ رَبِّ ٱلۡعَٰلَمِينَ ٢</p><div class="mid"><b>Арабски шрифт</b><small id="arV">${store.get('arSize')} px</small></div><input class="range" id="arR" type="range" min="22" max="64" value="${store.get('arSize')}" aria-label="Размер на арабския текст"></div>
+      <div class="set-row"><p class="preview-tr">Хвала на Аллах, Господа на световете,</p><div class="mid"><b>Превод</b><small id="trV">${store.get('trSize')} px</small></div><input class="range" id="trR" type="range" min="13" max="28" value="${store.get('trSize')}" aria-label="Размер на превода"></div>
+      <div class="set-row"><div class="mid"><b>Показвай превода</b><small>Превод на Цветан Теофанов</small></div>${sw('showTr', store.get('showTr'), 'Показвай превода')}</div>
     </div>
     <div class="sub">Слушане</div>
     <div class="card set-group">
       <button class="set-row" id="sRec" style="width:100%;text-align:left"><div class="mid"><b>Рецитатор</b><small>${esc(reciterById(store.get('reciter')).name)} · ${esc(reciterById(store.get('reciter')).note)}</small></div>${icon('chev-r')}</button>
-      <div class="set-row"><div class="mid"><b>Следи айета, който се чете</b><small>Страницата се превърта сама</small></div>${sw('follow', store.get('follow'))}</div>
-      <div class="set-row"><div class="mid"><b>Продължавай със следващата сура</b></div>${sw('autoNext', store.get('autoNext'))}</div>
+      <div class="set-row"><div class="mid"><b>Следи айета, който се чете</b><small>Страницата се превърта сама</small></div>${sw('follow', store.get('follow'), 'Следи айета, който се чете')}</div>
+      <div class="set-row"><div class="mid"><b>Продължавай със следващата сура</b></div>${sw('autoNext', store.get('autoNext'), 'Продължавай със следващата сура')}</div>
     </div>
     <div class="sub">Намаз</div>
     <div class="card set-group">
       <button class="set-row" id="sPlace" style="width:100%;text-align:left"><div class="mid"><b>Населено място</b><small>${store.get('place') ? esc(P.placeLabel(store.get('place')) + ' · ' + P.placeSub(store.get('place'))) : 'Не е избрано'}</small></div>${icon('chev-r')}</button>
-      <div class="set-row"><div class="mid"><b>Точно време за селото</b><small>Включено: добавя разликата по географска дължина спрямо най-близкия официален град (правилото на Мюфтийството). Изключено: показва времената на самия град.</small></div>${sw('villageMode', store.get('villageMode') === 'corrected')}</div>
+      <div class="set-row"><div class="mid"><b>Точно време за селото</b><small>Включено: добавя разликата по географска дължина спрямо най-близкия официален град (правилото на Мюфтийството). Изключено: показва времената на самия град.</small></div>${sw('villageMode', store.get('villageMode') === 'corrected', 'Точно време за селото')}</div>
     </div>
     <div class="sub">Офлайн</div>
     <div class="card set-group">
@@ -696,7 +743,7 @@ function renderSettings() {
       Преводът предава смисъла и не замества арабския оригинал. Хиджри датата е изчислена (Умм ал-Кура) и може да се различава с ден от обявената от Мюфтийството.
     </div>
   </div>`;
-  view.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); view.querySelectorAll('[data-theme]').forEach(x => x.classList.toggle('on', x === b)); });
+  view.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); view.querySelectorAll('[data-theme]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }); });
   $('#arR').oninput = e => { store.set('arSize', +e.target.value); $('#arV').textContent = e.target.value + ' px'; applyPrefs(); };
   $('#trR').oninput = e => { store.set('trSize', +e.target.value); $('#trV').textContent = e.target.value + ' px'; applyPrefs(); };
   view.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => {
@@ -715,8 +762,9 @@ function renderSettings() {
 async function offlineStatus() {
   const s = $('#offS'); if (!s) return;
   if (!('caches' in window)) { s.textContent = 'Браузърът не поддържа офлайн режим'; return; }
-  const c = await caches.open(DATA_CACHE);
-  const keys = await c.keys();
+  const name = (await caches.keys()).find(k => k.startsWith('qk-data'));
+  const keys = name ? await (await caches.open(name)).keys() : [];
+  if (!s.isConnected) return; // напуснал е Настройки
   const have = keys.filter(k => /\/data\/s\/\d+\.json$/.test(k.url)).length;
   s.textContent = have >= 114 ? 'Изтеглен — четенето работи и без интернет (аудиото изисква връзка)' : `Изтеглени ${have} от 114 сури`;
   if (have >= 114) $('#offB').hidden = true;
@@ -727,7 +775,6 @@ async function downloadAll() {
   await Promise.all(META.surahs.map(s => loadSurah(s.n).then(() => { done++; if ($('#offS')) $('#offS').textContent = `Изтеглям… ${done}/114`; }).catch(() => {})));
   setTimeout(offlineStatus, 500);
 }
-const DATA_CACHE = 'qk-data-v1';
 
 // ---------- странична лента: следващ намаз ----------
 async function railPrayer() {
@@ -737,10 +784,19 @@ async function railPrayer() {
   if (!place) { el.innerHTML = ''; return; }
   await P.loadPrayer();
   const np = P.nextPrayer(place, store.get('villageMode'));
-  el.innerHTML = `<a class="card" href="#/prayer" style="display:block;padding:14px 16px"><small class="muted" style="font-size:12px">${esc(P.placeLabel(place))}</small><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px"><b style="font:700 19px var(--serif)">${P.PRAYERS[np.i].bg}</b><b style="color:var(--gold);font-variant-numeric:tabular-nums">${P.fmt(np.at)}</b></div><small class="muted" style="font-size:12.5px">след ${countdown(np.secsLeft, true)}</small></a>`;
+  el.innerHTML = `<a class="card" href="#/prayer" style="display:block;padding:14px 16px"><small class="muted" style="font-size:12px">${esc(P.placeLabel(place))}</small><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px"><b style="font:700 19px var(--serif)">${P.PRAYERS[np.i].bg}</b><b style="color:var(--gold-ink);font-variant-numeric:tabular-nums">${P.fmt(np.at)}</b></div><small class="muted" style="font-size:12.5px">след ${countdown(np.secsLeft, true)}</small></a>`;
 }
-setInterval(railPrayer, 15000);
+setInterval(railPrayer, 1000); // показва секундите в последния час
 store.on(k => { if (k === 'place' || k === 'villageMode') railPrayer(); });
+
+// ---------- нов ден ----------
+let today = P.nowBG().d;
+setInterval(() => {
+  const d = P.nowBG().d;
+  if (d === today || !$('#sheet').hidden) return; // при отворен лист — при следващата проверка
+  today = d;
+  if (['home', 'prayer', 'qibla'].includes(route.name)) { pDay = 0; render(); }
+}, 15000);
 
 // ---------- старт ----------
 applyPrefs();

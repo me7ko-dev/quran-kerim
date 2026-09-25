@@ -63,8 +63,11 @@ for (const [id, [name, lat, lon, obl]] of Object.entries(TOWNS)) {
 }
 const out = { source: URL_, dstInTable: [ds, de], checked: new Date().toISOString().slice(0, 10), tz: 'UTC+2 (зимно време; лятното се добавя в приложението)', base, towns };
 const old = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT)) : null;
-const same = old && JSON.stringify({ ...old, checked: 0 }) === JSON.stringify({ ...out, checked: 0 });
-if (same) { old.checked = out.checked; fs.writeFileSync(OUT, JSON.stringify(old)); console.log('\nБез промяна.'); }
-else { fs.writeFileSync(OUT, JSON.stringify(out)); console.log('\nОбновено: ' + OUT); }
+// Датите на смяна на часовото време (dstInTable) се местят всяка година, а времената в зимно време
+// остават същите — това не е нов календар. Файлът се записва с новите стойности и в двата случая.
+const key = o => JSON.stringify({ ...o, checked: 0, dstInTable: 0 });
+const same = !!old && key(old) === key(out);
+fs.writeFileSync(OUT, JSON.stringify(out));
+console.log(same ? '\nБез промяна в календара.' : '\nОбновено: ' + OUT);
 // за GitHub Actions: различно съобщение при истинска промяна
 if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${!same}\n`);

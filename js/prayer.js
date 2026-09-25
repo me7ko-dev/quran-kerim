@@ -82,26 +82,28 @@ export function checkedOn() {
 
 export const fmt = min => { min = ((min % 1440) + 1440) % 1440; return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`; };
 
-// Следващото време за намаз спрямо сега
+// Следващото време за намаз спрямо сега. day — времената на деня, към който то принадлежи
+// (след ятсъ това е утрешният ден).
 export function nextPrayer(place, villageMode) {
   const n = nowBG();
-  const today = timesFor(place, n.y, n.m, n.d, villageMode).times;
-  const nowMin = n.sec / 60;
-  let i = today.findIndex(t => t > nowMin);
-  let at, dayShift = 0;
+  let day = timesFor(place, n.y, n.m, n.d, villageMode).times;
+  let i = day.findIndex(t => t > n.sec / 60);
+  let { y, m, d } = n;
   if (i === -1) {
     const t = new Date(Date.UTC(n.y, n.m - 1, n.d + 1));
-    at = timesFor(place, t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), villageMode).times[0];
-    i = 0; dayShift = 1;
-  } else at = today[i];
-  const secsLeft = (at + dayShift * 1440) * 60 - n.sec;
-  const cur = i === 0 && !dayShift ? 5 : (i + 5) % 6; // текущото (предишното) време
-  return { i, at, secsLeft, today, cur: dayShift ? 5 : cur, n };
+    [y, m, d] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()];
+    day = timesFor(place, y, m, d, villageMode).times;
+    i = 0;
+  }
+  const at = day[i];
+  // броим в UTC: в нощта на смяна на часовото време денят има 23 или 25 часа
+  const secsLeft = (Date.UTC(y, m - 1, d) + (at - sofiaOffset(y, m, d)) * 60000 - Date.now()) / 1000;
+  return { i, at, secsLeft, day };
 }
 
 export function placeLabel(p) {
   if (!p) return '';
-  return (p.type === 0 ? 'гр. ' : 'с. ') + p.name;
+  return (p.type === 0 ? 'гр.\u00a0' : 'с.\u00a0') + p.name; // без пренасяне след „с.“
 }
 export function placeSub(p) {
   if (!p) return '';
@@ -128,6 +130,13 @@ export function searchPlaces(q, limit = 60) {
   out.sort((x, y) => x[0] - y[0] || x[1].type - y[1].type || x[1].name.localeCompare(y[1].name, 'bg'));
   return out.slice(0, limit).map(x => x[1]);
 }
+// Точно съвпадение по име (за връзки #/prayer/<място>), градовете първи
+export function exactPlaces(q) {
+  const a = norm(q), l = translit(q);
+  return a ? places.filter(p => p.key === a || p.lat_ === l).sort((x, y) => x.type - y.type) : [];
+}
+// Какво пазим за избраното място
+export const placeRecord = p => ({ name: p.name, type: p.type, lat: p.lat, lon: p.lon, obl: p.obl, obs: p.obs });
 export function nearestPlace(lat, lon) {
   let best = null;
   for (const p of places) { const km = dist({ lat, lon }, p); if (!best || km < best.km) best = { p, km }; }
@@ -139,7 +148,7 @@ const HM = ['Мухаррем', 'Сафер', 'Ребиул-евел', 'Реби
 export function hijri(date = new Date()) {
   try {
     const p = Object.fromEntries(new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Europe/Sofia' }).formatToParts(date).map(x => [x.type, x.value]));
-    return `${+p.day} ${HM[+p.month - 1]} ${parseInt(p.year)} г. х.`;
+    return `${+p.day} ${HM[+p.month - 1]} ${parseInt(p.year)}\u00a0г.\u00a0х.`;
   } catch (e) { return ''; }
 }
 

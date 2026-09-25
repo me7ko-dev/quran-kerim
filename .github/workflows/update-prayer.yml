@@ -37,4 +37,5 @@ jobs:
           else
             git commit -m "Времена за намаз: проверено $(date -u +%F), без промяна"
           fi
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push

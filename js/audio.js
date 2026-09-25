@@ -74,7 +74,8 @@ export class Player extends EventTarget {
       try { ms.setActionHandler('stop', () => this.stop()); } catch (e) {}
     }
   }
-  get playing() { return !!this.cur && !this.el.paused; }
+  // след неуспешно зареждане браузърът оставя paused = false, въпреки че нищо не свири
+  get playing() { return !!this.cur && !this.el.paused && !this.el.error; }
   emit() { this.dispatchEvent(new CustomEvent('state')); }
 
   // mode: single — само този айет; continue — нататък поред; repeat — този айет N пъти;
@@ -85,6 +86,7 @@ export class Player extends EventTarget {
     if (mode === 'range' && this.done) this.loop = 1; // откъсът беше завършен — нови кръгове
     this.mode = mode;
     this.rep = 1;
+    this.errors = 0;
     const bism = mode === 'continue' && a === 1 && s !== 1 && s !== 9;
     this.cur = { s, a, bism };
     this.load(true);
@@ -96,6 +98,7 @@ export class Player extends EventTarget {
     this.play(s, from, 'range');
   }
   load(autoplay) {
+    if (!this.cur) return; // спряно, докато чакаше повторен опит след грешка
     const { s, a, bism } = this.cur;
     this.done = false;
     this.el.src = bism ? audioUrl(this.reciter, 1, 1) : audioUrl(this.reciter, s, a);
@@ -123,7 +126,9 @@ export class Player extends EventTarget {
     return null;
   }
   preloadNext() {
-    const n = this.nextItem();
+    let n = this.nextItem();
+    // при повторение следващият различен айет идва след последното повторение
+    if (n && n.again && this.mode === 'range') { const R = this.range, a = this.cur.a; n = a < R.to ? { s: R.s, a: a + 1 } : (!R.loops || this.loop < R.loops) && R.from !== a ? { s: R.s, a: R.from } : null; }
     if (!n || n.again) return;
     const u = n.bism ? audioUrl(this.reciter, 1, 1) : audioUrl(this.reciter, n.s, n.a);
     if (this.pre.src !== u) { this.pre.src = u; this.pre.load(); }
@@ -140,12 +145,13 @@ export class Player extends EventTarget {
   step(d) {
     if (!this.cur) return;
     let { s, a } = this.cur;
-    a += d;
+    if (!(this.cur.bism && d > 0)) a += d; // „напред“ по време на Бисмиллях отива на 1-ви айет, не на 2-ри
     const R = this.mode === 'range' && this.range;
     if (R) a = Math.max(R.from, Math.min(R.to, a)); // при заучаване остава в откъса
     else if (a < 1) { if (s === 1) a = 1; else { s--; a = this.count(s); } }
     else if (a > this.count(s)) { if (s === 114) a = this.count(s); else { s++; a = 1; } }
     this.rep = 1;
+    this.errors = 0;
     this.cur = { s, a, bism: false };
     this.load(true);
   }
@@ -153,6 +159,7 @@ export class Player extends EventTarget {
   pause() { this.el.pause(); }
   resume() {
     if (!this.cur) return;
+    if (this.el.error) { this.errors = 0; this.load(true); return; } // след неуспешно зареждане — нов опит
     if (this.done) {
       const R = this.range;
       if (this.mode === 'range') this.playRange(R.s, R.from, R.to, R.each, R.loops); // откъсът отначало
