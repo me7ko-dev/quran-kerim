@@ -1,9 +1,9 @@
 // Service worker: приложението се отваря и без интернет.
 // Кодът — първо от мрежата (за да идват обновленията), текстът на Корана и шрифтът — от кеша.
 // Увеличи SHELL при промяна в кода, ако кешът пречи; DATA — само ако се поправи текст в data/s/ или places.json.
-const SHELL = 'qk-shell-v10';
+const SHELL = 'qk-shell-v11';
 const DATA = 'qk-data-v1';
-const SHELL_FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/audio.js', 'js/prayer.js', 'js/qibla.js', 'js/intro.js', 'css/intro.css', 'data/meta.json', 'data/prayer.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
+const SHELL_FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/audio.js', 'js/prayer.js', 'js/qibla.js', 'js/intro.js', 'js/intro3d.js', 'css/intro.css', 'data/meta.json', 'data/prayer.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(Promise.all([

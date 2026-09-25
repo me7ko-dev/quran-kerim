@@ -120,6 +120,67 @@ const frame = `<svg class="pg-svg" viewBox="0 0 200 280" preserveAspectRatio="no
   ${[[15, 15], [185, 15], [185, 265], [15, 265]].map(([x, y]) => `<g transform="translate(${x} ${y})"><circle r="6.5" fill="#1d4f91" stroke="#b8892c" stroke-width="1"/>${around(8, a => `<path d="${petal(4.6, 1.8, .6)}" transform="rotate(${a})" fill="#e2c476"/>`)}<circle r="1.3" fill="#b0302f"/></g>`).join('')}
 </svg>`;
 
+// ---------- карти за 3D (WebGL): височина на корицата и маска на смарагдите ----------
+// Сиво = височина: 0.45 е полето, по-светлото е изпъкнало, по-тъмното — гравирано. От нея 3D-то смята нормалите.
+const g = v => { const c = Math.round(v * 255); return `rgb(${c},${c},${c})`; };
+const hCorner = (x, y, rot) => `
+  <g transform="translate(${x} ${y}) rotate(${rot})">
+    <path d="M0,0 L32,0 A32,32 0 0 1 0,32Z" fill="${g(.64)}"/>
+    ${[12, 27, 42, 57, 72].map(a => `<path d="${petal(13, 3.6, 8)}" transform="rotate(${90 + a})" fill="${g(.86)}"/>`).join('')}
+    <path d="M0,24 A24,24 0 0 0 24,0" fill="none" stroke="${g(.34)}" stroke-width=".9"/>
+    <path d="M0,8 A8,8 0 0 0 8,0" fill="none" stroke="${g(.34)}" stroke-width="1"/>
+    <circle cx="4" cy="4" r="2.4" fill="${g(.95)}"/>
+  </g>`;
+const hPendant = flip => `
+  <g transform="translate(${CX} ${CY}) scale(1 ${flip})">
+    <path d="M0,-47 L0,-53" stroke="${g(.82)}" stroke-width="1.6"/>
+    <path d="M0,-53 C9,-56 13,-66 0,-82 C-13,-66 -9,-56 0,-53Z" fill="${g(.74)}"/>
+    <path d="M0,-57 C5,-60 7,-66 0,-75 C-7,-66 -5,-60 0,-57Z" fill="none" stroke="${g(.42)}" stroke-width=".7"/>
+    <circle cy="-65" r="2.5" fill="${g(.95)}"/>
+    <circle cy="-85" r="1.8" fill="${g(.92)}"/>
+  </g>`;
+const coverHeight = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280" width="1024" height="1434">
+  <defs>
+    <pattern id="hG" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M10 2l2.3 5.7L18 10l-5.7 2.3L10 18l-2.3-5.7L2 10l5.7-2.3z" fill="none" stroke="${g(.33)}" stroke-width=".55"/>
+      <path d="M0 0l4 4M20 0l-4 4M0 20l4-4M20 20l-4-4" stroke="${g(.33)}" stroke-width=".55"/>
+      <circle cx="10" cy="10" r="1.1" fill="${g(.6)}"/>
+    </pattern>
+    <pattern id="hB" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="${g(.5)}"/><path d="M4 .8L7.2 4 4 7.2.8 4z" fill="${g(.8)}"/><circle cx="4" cy="4" r="1" fill="${g(.42)}"/>
+    </pattern>
+  </defs>
+  <rect width="200" height="280" fill="${g(.45)}"/>
+  <rect x="21" y="21" width="158" height="238" fill="url(#hG)"/>
+  <path d="M9 9h182v262H9zM17 17v246h166V17z" fill="url(#hB)" fill-rule="evenodd"/>
+  <g fill="none" stroke="${g(.88)}">
+    <rect x="5" y="5" width="190" height="270" rx="4" stroke-width="1.8"/>
+    <rect x="9" y="9" width="182" height="262" rx="2" stroke-width=".8"/>
+    <rect x="17" y="17" width="166" height="246" rx="1" stroke-width=".8"/>
+    <rect x="21" y="21" width="158" height="238" stroke-width="1.4"/>
+  </g>
+  ${hCorner(21, 21, 0)}${hCorner(179, 21, 90)}${hCorner(179, 259, 180)}${hCorner(21, 259, 270)}
+  ${hPendant(1)}${hPendant(-1)}
+  <g transform="translate(${CX} ${CY})">
+    <circle r="47" fill="${g(.6)}"/>
+    ${around(16, a => `<path d="${petal(15, 6.2, 31)}" transform="rotate(${a})" fill="${g(.84)}"/>`)}
+    ${around(16, a => `<path d="${petal(9, 3, 33)}" transform="rotate(${a + 11.25})" fill="${g(.7)}"/>`)}
+    <circle r="31.5" fill="none" stroke="${g(.3)}" stroke-width="1.3"/>
+    ${around(36, a => { const [x, y] = pt(0, 0, 29.3, a); return `<circle cx="${x}" cy="${y}" r=".95" fill="${g(.96)}"/>`; })}
+    <circle r="27" fill="${g(.5)}"/>
+    <circle r="24.5" fill="none" stroke="${g(.72)}" stroke-width=".6" stroke-dasharray="1 1.2"/>
+  </g>
+  ${[[CX - 58, CY], [CX + 58, CY]].map(([x, y]) => `<path d="M${x},${y - 5} L${x + 3},${y} L${x},${y + 5} L${x - 3},${y}Z" fill="${g(.86)}"/>`).join('')}
+</svg>`;
+// смарагдите (бяло на черно) — в 3D са стъкло, не метал
+const gemAt = [[25, 25], [175, 25], [175, 255], [25, 255], [CX, CY - 65], [CX, CY + 65]];
+const coverGems = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280" width="1024" height="1434"><rect width="200" height="280" fill="#000"/>${gemAt.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.4" fill="#fff"/>`).join('')}</svg>`;
+const asSvgFile = s => s.replace(/<svg class="[^"]*"/, '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1434"').replace(/ aria-hidden="true"/, '').replace(/\n\s*/g, '');
+const ASSETS = path.join(here, 'intro3d/assets.js');
+fs.mkdirSync(path.dirname(ASSETS), { recursive: true });
+fs.writeFileSync(ASSETS, '// Генерирано от tools/build-intro.mjs — не пипай на ръка.\n' + Object.entries({ coverHeight, coverGems, frame: asSvgFile(frame), ebru: asSvgFile(ebru) })
+  .map(([k, v]) => `export const ${k} = ${JSON.stringify(v.replace(/\n\s*/g, ''))};`).join('\n') + '\n');
+
 let html = fs.readFileSync(FILE, 'utf8');
 for (const [k, svg] of Object.entries({ cover, spine, ebru, frame })) {
   const re = new RegExp(`<!--intro:${k}-->[\\s\\S]*?<!--/intro:${k}-->`);

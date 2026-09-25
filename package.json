@@ -1,0 +1,13 @@
+{
+  "name": "quran-kerim",
+  "private": true,
+  "description": "Статичен сайт (без build). Само 3D началният екран се пакетира: npm run build:intro",
+  "scripts": {
+    "build:intro": "node tools/build-intro.mjs && esbuild tools/intro3d/main.js --bundle --minify --format=esm --target=es2020 --legal-comments=eof --outfile=js/intro3d.js",
+    "test": "node tools/test/run.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "three": "0.186.1"
+  }
+}

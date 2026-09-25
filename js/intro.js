@@ -27,12 +27,26 @@ export function runIntro() {
       stars.appendChild(s);
     }
     // текстът на Ал-Фатиха — от проверените данни (data/s/1.json), без да го пишем на ръка
-    fetch('data/s/1.json').then(r => r.json()).then(a => { $('inFatiha').textContent = a.map(x => x[0]).join(' '); }).catch(() => {});
+    const fatiha = fetch('data/s/1.json').then(r => r.json()).then(a => a.map(x => x[0]));
+    fatiha.then(a => { $('inFatiha').textContent = a.join(' '); }).catch(() => {});
+
+    // 3D (WebGL): зарежда се тихо; докато не е готово — CSS мусхафът. Ако няма WebGL или нещо се счупи — остава CSS.
+    let gl = null, tapped = false;
+    if (hasWebGL()) {
+      const host = document.createElement('div');
+      host.className = 'in-gl-host';
+      el.prepend(host);
+      Promise.all([import('./intro3d.js'), fatiha])
+        .then(([m, ayahs]) => m.start({ host, ayahs, reduced, onLost: () => { gl = null; el.classList.remove('gl', 'gl-open'); host.remove(); } }))
+        .then(c => { if (done || tapped) { c.dispose(); return; } gl = c; requestAnimationFrame(() => el.classList.add('gl')); })
+        .catch(e => { console.warn('3D началният екран не тръгна:', e); host.remove(); });
+    }
 
     const finish = () => {
       if (done) return; done = true;
       timers.forEach(clearTimeout);
       el.classList.add('gone');
+      if (gl) setTimeout(() => gl.dispose(), 950);
       removeEventListener('keydown', onKey);
       setTimeout(() => { root.classList.remove('intro-on'); el.remove(); resolve(); }, reduced ? 50 : 900);
     };
@@ -42,8 +56,10 @@ export function runIntro() {
 
     $('inBism').onclick = () => {
       if (el.classList.contains('opening')) return;
+      tapped = true;
       // Бисмиллях с избрания рецитатор (докосването позволява звук и на iPhone); без интернет — просто тихо
       try { new Audio(audioUrl(store.get('reciter'), 1, 1)).play().catch(() => {}); } catch (e) {}
+      if (gl) { el.classList.add('opening', 'gl-open'); gl.open().then(finish); return; }
       // отвореният мусхаф е два пъти по-широк — смаляваме го, ако не се побира
       const bw = el.querySelector('.book').offsetWidth;
       el.style.setProperty('--fit', Math.min(1, innerWidth * .94 / (2 * bw)).toFixed(3));
@@ -57,6 +73,10 @@ export function runIntro() {
     // фокус върху бутона — Enter/интервал отваря
     requestAnimationFrame(() => $('inBism').focus({ preventScroll: true }));
   });
+}
+
+function hasWebGL() {
+  try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; }
 }
 
 function sparks(el) {
