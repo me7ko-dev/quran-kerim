@@ -59,10 +59,13 @@
 }
 
 * { box-sizing: border-box; }
+/* Стандартните форми на кирилицата навсякъде: шрифтовете имат и български (д като g, л като ʌ), които
+   lang="bg" включва. С !important, защото шорткът font: нулира font-feature-settings (заглавията оставаха с тях). */
+*, *::before, *::after { font-feature-settings: 'locl' 0 !important; }
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 90px; }
 body {
   margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--ui);
-  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; font-feature-settings: 'locl' 0;
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
   background-image: radial-gradient(1200px 500px at 50% -200px, var(--bg-2), transparent 70%);
   background-attachment: fixed; min-height: 100dvh;
 }
@@ -244,7 +247,7 @@ body.playing main { padding-bottom: calc(var(--tab) + 110px); }
 .ayah-top .ib.bm { color: var(--gold); }
 .ar-text {
   font-family: 'Hafs', serif; font-size: var(--ar); line-height: 2.05; direction: rtl; text-align: right;
-  margin: 0; word-spacing: 1px; color: var(--text); font-feature-settings: 'calt', 'liga';
+  margin: 0; word-spacing: 1px; color: var(--text);
 }
 .tr-text { font-size: var(--trs); line-height: 1.65; margin: 10px 0 0; color: var(--text); opacity: .88; }
 .hide-tr .tr-text { display: none; }
