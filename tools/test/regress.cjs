@@ -109,6 +109,41 @@ module.exports = async b => {
     ok('„Пусни“ след неуспешно зареждане опитва наново', await p.evaluate(() => !qkPlayer.el.error && (!qkPlayer.el.paused || qkPlayer.done)));
     await p.ctx.close(); }
 
+  console.log('Фокус, позиция на четене, полунощ при друг ден');
+  { const p = await page(b, {}, { ctx: { viewport: { width: 1280, height: 860 } } });
+    await p.goto(U + '#/s/112'); await p.waitForTimeout(900);
+    await p.evaluate(() => qkPlayer.play(112, 4, 'continue')); await p.waitForTimeout(100);
+    await p.focus('#plNext'); await p.keyboard.press('Enter');
+    await p.waitForFunction(() => location.hash === '#/s/113', null, { timeout: 5000 }).catch(() => {}); await p.waitForTimeout(500);
+    ok('автоматична смяна на сурата не отнема фокуса от плейъра', await p.evaluate(() => document.activeElement.id) === 'plNext');
+    await p.evaluate(() => qkPlayer.stop());
+    await p.focus('.rail-nav a[href="#/settings"]'); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+    ok('след навигация от менюто фокусът е в съдържанието, без рамка', await p.evaluate(() => document.activeElement.id === 'view' && getComputedStyle(document.activeElement).outlineStyle === 'none'));
+    await p.ctx.close(); }
+  for (const [w, h] of [[390, 844], [1280, 860]]) {
+    const p = await page(b, {}, { ctx: { viewport: { width: w, height: h } } });
+    await p.goto(U + '#/s/2/255'); await p.waitForTimeout(2000);
+    const [top, bar] = await p.evaluate(() => [document.getElementById('a-255').getBoundingClientRect().top, document.querySelector('.topbar').getBoundingClientRect().bottom]);
+    ok(`${w}px: #/s/2/255 — айетът е под лентата и се записва 255`, top >= bar && await p.evaluate(() => JSON.parse(localStorage.getItem('qk:v1')).last.a) === 255);
+    for (const l of ['both', 'bg']) { await p.click('#tView'); await p.waitForTimeout(300); await p.click(`#sheet [data-lang=${l}]`); await p.waitForTimeout(1500); }
+    ok(`${w}px: смяна на езика не мести позицията на четене`, await p.evaluate(() => JSON.parse(localStorage.getItem('qk:v1')).last.a) === 255);
+    await p.ctx.close();
+  }
+  { const p = await page(b, { place: sofia }, { clock: '2026-10-10T20:58:00Z' });
+    await p.goto(U + '#/prayer'); await p.waitForTimeout(500); await p.click('#dNext'); await p.waitForTimeout(200);
+    await p.clock.fastForward(3 * 60000); await p.clock.runFor(16000); await p.waitForTimeout(200);
+    const b2 = await p.textContent('.day-nav b'); await p.click('#dPrev'); await p.waitForTimeout(200);
+    ok('полунощ при разглеждане на друг ден: датата остава, „назад“ е ден назад', /Днес, 11 октомври/.test(b2) && /10 октомври/.test(await p.textContent('.day-nav b')));
+    await p.ctx.close(); }
+  { const p = await page(b, { trLang: 'tr' });
+    await p.goto(U + '#/search/' + encodeURIComponent('Allah’ın')); await p.waitForTimeout(3000);
+    ok('търсене с ’ (клавиатура на iPhone) намира „Allah\'ın“', !/^0 /.test(await p.textContent('#view p.muted')));
+    await p.ctx.close(); }
+  { const p = await page(b, { trLang: 'tr', mode: 'mushaf' }, { route: [/\/data\/tr\//, async r => { await new Promise(x => setTimeout(x, 4000)); r.continue().catch(() => {}); }] });
+    await p.goto(U + '#/s/36'); await p.waitForTimeout(1200);
+    ok('мусхаф не чака бавния турски файл', await p.evaluate(() => !!document.querySelector('.mushaf')));
+    await p.ctx.close(); }
+
   console.log('Кибла и полунощ');
   { const p = await page(b, { place: sofia }, { ctx: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, clock: '2026-12-31T21:59:40Z',
       init: () => { DeviceOrientationEvent.requestPermission = async () => 'granted'; } });

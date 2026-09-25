@@ -36,7 +36,8 @@ let trWarned = false;
 // Сменя езика на превода; турският се изтегля тихо за четене без интернет
 function setTrLang(v) {
   store.set('trLang', v); trWarned = false;
-  if (langs().includes('tr')) META.surahs.forEach((s, i) => setTimeout(() => loadTr(s.n).catch(() => {}), 400 + i * 40));
+  if (!langs().includes('tr')) return Promise.resolve();
+  return Promise.all(META.surahs.map((s, i) => new Promise(r => setTimeout(r, 400 + i * 40)).then(() => loadTr(s.n)).catch(() => {})));
 }
 const trLangSeg = cls => `<div class="seg ${cls}" role="group" aria-label="Език на превода">${TR_OPTS.map(([k, t]) => `<button data-lang="${k}" class="${store.get('trLang') === k ? 'on' : ''}" aria-pressed="${store.get('trLang') === k}"${k === 'tr' ? ' lang="tr"' : ''}>${t}</button>`).join('')}</div>`;
 // Преводите на всеки айет от сура n в избраните езици: [[{ l, t }, …], …]
@@ -276,7 +277,9 @@ async function render() {
   const title = route.name === 'surah' ? S(route.s).name : { prayer: 'Времена за намаз', qibla: 'Кибла', bookmarks: 'Отметки', settings: 'Настройки', search: 'Търсене' }[route.name];
   document.title = (title ? title + ' · ' : '') + 'Куран-и Керим';
   // екранните четци започват от новото съдържание, а не от изчезналия бутон
-  if (prev !== firstRoute && !view.contains(document.activeElement) && $('#sheet').hidden) view.focus({ preventScroll: true });
+  // (само ако фокусът е изчезнал или е бил в навигацията — не и от плейъра при автоматична смяна на сурата)
+  const ae = document.activeElement;
+  if (prev !== firstRoute && $('#sheet').hidden && (!ae || ae === document.body || ae.closest('.rail, .tabbar'))) view.focus({ preventScroll: true });
   syncPlayer();
   stickyBar();
 }
@@ -377,7 +380,8 @@ async function renderSurah() {
     <button class="ib" id="tSize" aria-label="Размер на шрифта">${icon('text')}</button>
     <button class="ib" id="tView" aria-label="Изглед">${icon('book')}</button></div><div class="loader"></div>`;
   let ayahs, trs;
-  try { ayahs = await loadSurah(n); trs = await translations(n); } catch (e) { if (route.name === 'surah' && route.s === n) view.querySelector('.loader').outerHTML = loadFail(); return; }
+  // турският файл се чака само когато преводът се вижда (не в мусхаф или „само арабски“)
+  try { ayahs = await loadSurah(n); trs = await translations(n, store.get('mode') === 'ayah' && store.get('showTr') ? langs() : ['bg']); } catch (e) { if (route.name === 'surah' && route.s === n) view.querySelector('.loader').outerHTML = loadFail(); return; }
   if (route.name !== 'surah' || route.s !== n) return;
   const mode = store.get('mode');
   const showTr = store.get('showTr');
@@ -426,7 +430,7 @@ async function renderSurah() {
   const io = new IntersectionObserver(es => {
     es.forEach(e => e.isIntersecting ? vis.add(+e.target.dataset.a) : vis.delete(+e.target.dataset.a));
     if (vis.size) { const a = Math.min(...vis); clearTimeout(saveT); saveT = setTimeout(() => store.set('last', { s: n, a }), 600); }
-  }, { rootMargin: '-80px 0px -55% 0px' });
+  }, { rootMargin: `-${topPad() + 1}px 0px -55% 0px` }); // същото отстъпване като при скок към айет
   view.querySelectorAll('[data-a]').forEach(e => io.observe(e));
   cleanup.push(() => io.disconnect());
 
@@ -434,6 +438,7 @@ async function renderSurah() {
   else window.scrollTo(0, 0);
 }
 let saveT;
+const topPad = () => Math.round(parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop)) || 84;
 function jumpTo(a, instant) {
   const el = document.getElementById('a-' + a);
   if (!el) return;
@@ -547,7 +552,8 @@ async function renderSearch() {
     (res.slice(0, 300).map(([s, a, hit]) => `<a class="card res-item" href="#/s/${s}/${a}"><span class="ayah-key">${esc(S(s).name)} ${s}:${a}</span>${hit.map(x => `<p${x.l === 'tr' ? ' lang="tr"' : ''}>${many ? `<span class="tr-lbl">${x.l.toUpperCase()}</span>` : ''}${mark(x.t, q, x.l)}</p>`).join('')}</a>`).join('') || `<div class="empty">Няма намерени айети.</div>`);
 }
 // Сравнение без значение от главни/малки букви; за турски и „I/ı/İ/i“ се броят за едно
-const fold = (s, l) => l === 'tr' ? s.toLocaleLowerCase('tr').replace(/ı/g, 'i') : s.toLowerCase().replace(/ё/g, 'е');
+// ’ и ‘ (така пише клавиатурата на iPhone) се броят за ' — турският текст е с прав апостроф
+const fold = (s, l) => (l === 'tr' ? s.toLocaleLowerCase('tr').replace(/ı/g, 'i') : s.toLowerCase().replace(/ё/g, 'е')).replace(/[’‘]/g, "'");
 function mark(text, q, l) {
   const T = fold(text, l), Q = fold(q, l);
   if (!Q || T.length !== text.length) return esc(text); // позициите съвпадат само при еднаква дължина
@@ -813,9 +819,10 @@ function renderSettings() {
     </div>
   </div>`;
   view.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => {
-    setTrLang(b.dataset.lang);
+    const done = setTrLang(b.dataset.lang);
     view.querySelectorAll('[data-lang]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
     $('#trWho').textContent = trWho(); $('#trPrev').innerHTML = trPreview(); offlineStatus();
+    done.then(() => setTimeout(offlineStatus, 500)); // след тихото изтегляне на турския
   });
   view.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); view.querySelectorAll('[data-theme]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }); });
   $('#arR').oninput = e => { store.set('arSize', +e.target.value); $('#arV').textContent = e.target.value + ' px'; applyPrefs(); };
@@ -848,10 +855,12 @@ async function offlineStatus() {
 }
 async function downloadAll() {
   const b = $('#offB'); b.disabled = true;
+  const c = await caches.open((await caches.keys()).find(k => k.startsWith('qk-data')) || 'qk-data-v1');
+  const have = new Set((await c.keys()).map(r => new URL(r.url).pathname.replace(/^.*\/data\//, 'data/')));
+  const urls = META.surahs.flatMap(s => [`data/s/${s.n}.json`, ...(langs().includes('tr') ? [`data/tr/${s.n}.json`] : [])]).filter(u => !have.has(u));
   let done = 0;
-  const jobs = META.surahs.flatMap(s => [loadSurah(s.n), ...(langs().includes('tr') ? [loadTr(s.n)] : [])]);
-  await Promise.all(jobs.map(j => j.then(() => { done++; if ($('#offS')) $('#offS').textContent = `Изтеглям… ${Math.round(done / jobs.length * 100)}%`; }).catch(() => {})));
-  setTimeout(offlineStatus, 500);
+  await Promise.all(urls.map(u => c.add(u).then(() => { done++; if ($('#offS')) $('#offS').textContent = `Изтеглям… ${Math.round(done / urls.length * 100)}%`; }).catch(() => {})));
+  setTimeout(offlineStatus, 300);
 }
 
 // ---------- странична лента: следващ намаз ----------
@@ -876,14 +885,17 @@ setInterval(railPrayer, 1000); // показва секундите в посл�
 store.on(k => { if (k === 'place' || k === 'villageMode') railPrayer(); });
 
 // ---------- нов ден ----------
-let today = P.nowBG().d;
+let today = P.nowBG().d, prayerStale = false;
 setInterval(() => {
   const d = P.nowBG().d;
-  if (d === today) return;
-  today = d;
+  if (d !== today) {
+    today = d;
+    if (pDay) pDay--; // pDay се брои от днес — така разглежданата дата не се мести
+    prayerStale = true;
+    if (route.name === 'home' && $('.hero-date')) $('.hero-date').innerHTML = heroDate();
+  }
   // само това, което зависи от датата: без затваряне на листове, превъртане или изтриване на търсенето
-  if (route.name === 'prayer' && pDay === 0) renderPrayer();
-  else if (route.name === 'home' && $('.hero-date')) $('.hero-date').innerHTML = heroDate();
+  if (prayerStale && $('#sheet').hidden) { prayerStale = false; if (route.name === 'prayer') renderPrayer(); }
 }, 15000);
 
 // ---------- старт ----------

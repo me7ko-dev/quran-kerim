@@ -17,7 +17,7 @@
 - `data/prayer.json` — `base` (365 реда за София, зимно време UTC+2) + `towns` (48 града с `shift` в минути).
 - `data/places.json` — 6 911 населени места от OSM: `[име, 0 град/1 село/2 махала, lat, lon, област, община]`.
 - Шрифтове: всички са в `fonts/` (Manrope, Cormorant Garamond — поднабори latin/latin-ext/cyrillic от @fontsource-variable; лиценз `fonts/OFL.txt`). Без Google Fonts.
-- `sw.js` — офлайн. Код: мрежа първо, кеш при липса на връзка (страницата и prayer.json не чакат над 4 сек), `qk-shell-vN`. Текст/шрифт: кеш първо в `qk-data-v1` —
+- `sw.js` — офлайн. Код: мрежа първо, кеш при липса на връзка или „висяща“ мрежа (страница и prayer.json след 4 сек, JS/CSS след 10 сек), `qk-shell-vN`. Текст/шрифт: кеш първо в `qk-data-v1` —
   увеличи го САМО при поправка на текст в `data/s/`, `data/tr/` или `places.json` (всички потребители ще изтеглят наново ~4 MB).
 
 ## Важни факти за времената (проверени)
@@ -43,8 +43,8 @@
   компасът се симулира с `new DeviceOrientationEvent('deviceorientationabsolute', { alpha, absolute: true })`.
 
 ## Тестове — `node tools/test/run.cjs` (Playwright; axe-core по желание)
-Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 51 проверки (~2 мин):
-- `regress.cjs` — всеки бъг от двата прегледа (часовник с `page.clock`, истинско аудио с генериран WAV вместо everyayah);
+Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 60 проверки (~2 мин):
+- `regress.cjs` — всеки бъг от трите прегледа (часовник с `page.clock`, истинско аудио с генериран WAV вместо everyayah);
 - `features.cjs` — кибла (симулиран компас), турски превод, листове/фокус, axe, препълване при 320/390/1280, офлайн с изключен сървър.
 В облака: `NODE_PATH=/opt/node22/lib/node_modules node tools/test/run.cjs` (axe: `npm i axe-core` някъде и добави към NODE_PATH).
 update-prayer.mjs е проверен срещу имитиран grandmufti.bg (същата таблица / друга година / промяна в град) — скриптът не е в репото.

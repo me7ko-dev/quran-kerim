@@ -62,7 +62,8 @@
 /* Стандартните форми на кирилицата навсякъде: шрифтовете имат и български (д като g, л като ʌ), които
    lang="bg" включва. С !important, защото шорткът font: нулира font-feature-settings (заглавията оставаха с тях). */
 *, *::before, *::after { font-feature-settings: 'locl' 0 !important; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-top: 90px; }
+/* айетът след скок застава под лентата горе (по-висока на iPhone с изрез); app.js чете тази стойност */
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(84px + env(safe-area-inset-top)); }
 body {
   margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--ui);
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
@@ -79,6 +80,7 @@ a { color: inherit; text-decoration: none; }
 /* ---------- каркас ---------- */
 .app { min-height: 100dvh; }
 main { padding: 0 16px calc(var(--tab) + 24px); max-width: 920px; margin: 0 auto; outline: none; }
+main:focus-visible { outline: none; } /* фокусът идва тук при смяна на екран — без рамка около цялата страница */
 body.playing main { padding-bottom: calc(var(--tab) + 110px); }
 
 .rail { display: none; }
@@ -234,7 +236,7 @@ body.playing main { padding-bottom: calc(var(--tab) + 110px); }
 .bism { text-align: center; font: 400 calc(var(--ar) * 1.02)/2 'Hafs', serif; color: var(--text); margin: 0 0 14px; }
 
 .ayah {
-  padding: 16px 4px 20px; border-bottom: 1px solid var(--line); scroll-margin-top: 80px;
+  padding: 16px 4px 20px; border-bottom: 1px solid var(--line);
   content-visibility: auto; contain-intrinsic-size: auto 220px; transition: background .4s; border-radius: 4px;
 }
 .ayah.cur { background: var(--hl); border-radius: 14px; padding-left: 12px; padding-right: 12px; margin: 0 -8px; border-bottom-color: transparent; }
