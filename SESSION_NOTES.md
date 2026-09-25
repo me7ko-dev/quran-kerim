@@ -42,10 +42,12 @@
 - Тест в браузър: глобален Playwright (`NODE_PATH=/opt/node22/lib/node_modules`) + `node tools/serve.mjs 8931`;
   компасът се симулира с `new DeviceOrientationEvent('deviceorientationabsolute', { alpha, absolute: true })`.
 
-## Тестове (в облачната сесия)
-Скриптовете са в scratchpad-а на сесията, не в репото: регресии за 13-те бъга от прегледа (часовник с `page.clock`,
-истинско аудио с генериран WAV вместо everyayah), компас, заучаване, axe (0 нарушения), оформление при 320/390/1280 × 3 теми,
-офлайн с изключен сървър, update-prayer срещу имитиран grandmufti.bg (същата таблица / друга година / промяна в град).
+## Тестове — `node tools/test/run.cjs` (Playwright; axe-core по желание)
+Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 51 проверки (~2 мин):
+- `regress.cjs` — всеки бъг от двата прегледа (часовник с `page.clock`, истинско аудио с генериран WAV вместо everyayah);
+- `features.cjs` — кибла (симулиран компас), турски превод, листове/фокус, axe, препълване при 320/390/1280, офлайн с изключен сървър.
+В облака: `NODE_PATH=/opt/node22/lib/node_modules node tools/test/run.cjs` (axe: `npm i axe-core` някъде и добави към NODE_PATH).
+update-prayer.mjs е проверен срещу имитиран grandmufti.bg (същата таблица / друга година / промяна в град) — скриптът не е в репото.
 
 ## Идеи за после
 - Известия за намаз (изискват push сървър или отворено приложение).

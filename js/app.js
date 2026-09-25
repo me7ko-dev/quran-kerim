@@ -408,7 +408,7 @@ async function renderSurah() {
       ${trHtml(trs[i])}</article>`).join('')}</div>`;
   }
   const prev = n > 1 ? S(n - 1) : null, next = n < 114 ? S(n + 1) : null;
-  const nav = `<nav class="surah-nav">${prev ? `<a class="card" href="#/s/${n - 1}"><small>← Предишна</small><b>${esc(prev.name)}</b></a>` : '<span></span>'}${next ? `<a class="card" href="#/s/${n + 1}"><small>Следваща →</small><b>${esc(next.name)}</b></a>` : '<span></span>'}</nav>`;
+  const nav = `<nav class="surah-nav" aria-label="Съседни сури">${prev ? `<a class="card" href="#/s/${n - 1}"><small>← Предишна</small><b>${esc(prev.name)}</b></a>` : '<span></span>'}${next ? `<a class="card" href="#/s/${n + 1}"><small>Следваща →</small><b>${esc(next.name)}</b></a>` : '<span></span>'}</nav>`;
   view.querySelector('.loader').outerHTML = head + body + nav;
 
   view.querySelector('.surah-play').onclick = () => {

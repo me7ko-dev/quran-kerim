@@ -48,4 +48,5 @@ node tools/serve.mjs 8931            # локален сървър
 node tools/update-prayer.mjs         # обнови времената от grandmufti.bg
 node tools/check-reciters.mjs        # провери, че аудиото на рецитаторите е налично
 node tools/cdp-shot.mjs <url> out.png  # снимка като на телефон (Edge headless)
+node tools/test/run.cjs              # 51 браузърни теста (нужен е Playwright: npm i -g playwright)
 ```
