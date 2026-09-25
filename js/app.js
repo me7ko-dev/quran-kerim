@@ -1,6 +1,7 @@
 import { store, isBookmarked, toggleBookmark } from './store.js';
 import { Player, RECITERS, reciterById } from './audio.js';
 import * as P from './prayer.js';
+import * as Q from './qibla.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = $('#view');
@@ -40,6 +41,7 @@ function toast(msg) {
 }
 let sheetClose = null;
 function openSheet(html, onClose) {
+  $('#sheetBody').onclick = null; // обработчикът на предишния лист
   $('#sheetBody').innerHTML = html;
   $('#sheet').hidden = false; $('#scrim').hidden = false;
   document.body.style.overflow = 'hidden';
@@ -70,7 +72,7 @@ player.setRate(store.get('rate'));
 player.mode = store.get('play');
 player.repeatN = store.get('repeatN');
 player.autoNext = store.get('autoNext');
-const MODES = { single: 'Само айета', continue: 'Поредно', repeat: 'Повтори' };
+const MODES = { single: 'Само айета', continue: 'Поредно', repeat: 'Повтори', range: 'Откъс' };
 
 function syncPlayer() {
   const c = player.cur;
@@ -78,17 +80,23 @@ function syncPlayer() {
   document.body.classList.toggle('playing', !!c);
   document.querySelectorAll('.cur').forEach(e => e.classList.remove('cur'));
   document.querySelectorAll('[data-act=play].on').forEach(b => { b.classList.remove('on'); b.innerHTML = icon('play'); });
+  document.querySelectorAll('.in-range').forEach(e => e.classList.remove('in-range'));
   if (!c) return;
+  const R = player.mode === 'range' && player.range;
+  if (R && route.name === 'surah' && route.s === R.s) for (let a = R.from; a <= R.to; a++) document.getElementById('a-' + a)?.classList.add('in-range');
   if (route.name === 'surah' && route.s === c.s && player.playing) {
     const b = document.querySelector(`#a-${c.a} [data-act=play]`);
     if (b) { b.classList.add('on'); b.innerHTML = icon('pause'); }
   }
   const m = S(c.s);
   $('#plTitle').textContent = c.bism ? `${m.name} · Бисмиллях` : `${m.name} · айет ${c.a}`;
-  $('#plSub').textContent = reciterById(player.reciter).name + (player.mode === 'repeat' ? ` · ${player.rep}/${player.repeatN}` : '');
+  // напредъкът при повторение е най-отпред — името на рецитатора е дълго и се отрязва
+  const prog = player.mode === 'repeat' ? `Повторение ${player.rep}/${player.repeatN}`
+    : R ? (R.each > 1 ? `Повторение ${player.rep}/${R.each} · ` : '') + `Кръг ${player.loop}${R.loops ? '/' + R.loops : ''}` : '';
+  $('#plSub').textContent = (prog ? prog + ' · ' : '') + reciterById(player.reciter).name;
   $('#plPlay').innerHTML = icon(player.playing ? 'pause' : 'play') + '<span class="spin"></span>';
   $('#plPlay').classList.toggle('loading', player.loading && player.playing !== false && !player.el.paused);
-  $('#plMode').innerHTML = icon('repeat') + MODES[player.mode] + (player.mode === 'repeat' ? ` ×${player.repeatN}` : '');
+  $('#plMode').innerHTML = icon('repeat') + (R ? `Откъс ${R.from}–${R.to}` : MODES[player.mode] + (player.mode === 'repeat' ? ` ×${player.repeatN}` : ''));
   $('#plRate').textContent = player.rate + '×';
   $('#plReciter span').textContent = reciterById(player.reciter).name.split(' ').slice(-1)[0];
   if (route.name === 'surah' && route.s === c.s && !c.bism) {
@@ -107,7 +115,7 @@ let lastFollowed = '';
 player.addEventListener('state', syncPlayer);
 player.addEventListener('time', e => { $('#plProg').style.width = (e.detail * 100).toFixed(1) + '%'; });
 player.addEventListener('fail', () => toast('Аудиото не се зареди. Проверете интернет връзката.'));
-player.addEventListener('end', () => { if (player.cur && route.name === 'surah' && route.s !== player.cur.s && store.get('follow')) go(`#/s/${player.cur.s}`); });
+player.addEventListener('end', () => { if (player.mode === 'range') toast('Откъсът е прочетен докрай'); if (player.cur && route.name === 'surah' && route.s !== player.cur.s && store.get('follow')) go(`#/s/${player.cur.s}`); });
 $('#plPlay').onclick = () => player.toggle();
 $('#plPrev').onclick = () => player.step(-1);
 $('#plNext').onclick = () => player.step(1);
@@ -122,15 +130,60 @@ $('#plMode').onclick = () => modeSheet();
 $('#plReciter').onclick = () => reciterSheet();
 
 function modeSheet() {
+  const R = player.range;
   const b = openSheet(`<h3>Как да се чете</h3>
     <div class="opt-list">
-      ${Object.entries({ single: ['Само избрания айет', 'Спира след края на айета'], continue: ['Поредно', 'Продължава айет след айет' + (store.get('autoNext') ? ' и със следващата сура' : '')], repeat: ['Повтаряй айета', 'За заучаване наизуст'] })
+      ${Object.entries({ single: ['Само избрания айет', 'Спира след края на айета'], continue: ['Поредно', 'Продължава айет след айет' + (store.get('autoNext') ? ' и със следващата сура' : '')], repeat: ['Повтаряй айета', 'За заучаване наизуст'],
+        range: ['Заучаване на откъс', player.mode === 'range' && R ? `${S(R.s).name} ${R.s}:${R.from}–${R.to}` : 'Няколко айета поред, после отначало'] })
         .map(([k, [t, d]]) => `<button class="opt ${player.mode === k ? 'on' : ''}" data-m="${k}"><span class="mid"><b>${t}</b><small>${d}</small></span>${player.mode === k ? icon('check') : ''}</button>`).join('')}
     </div>
     <div class="sub">Брой повторения</div>
     <div class="seg" id="repN">${[2, 3, 5, 7, 10].map(n => `<button class="${player.repeatN === n ? 'on' : ''}" data-n="${n}">${n}×</button>`).join('')}</div>`);
-  b.querySelectorAll('[data-m]').forEach(x => x.onclick = () => { player.mode = x.dataset.m; store.set('play', player.mode); player.preloadNext(); syncPlayer(); closeSheet(); });
+  b.querySelectorAll('[data-m]').forEach(x => x.onclick = () => {
+    if (x.dataset.m === 'range') { hifzSheet(player.cur.s, player.cur.a); return; }
+    player.mode = x.dataset.m; store.set('play', player.mode); player.preloadNext(); syncPlayer(); closeSheet(); });
   b.querySelectorAll('[data-n]').forEach(x => x.onclick = () => { player.repeatN = +x.dataset.n; store.set('repeatN', player.repeatN); player.mode = 'repeat'; store.set('play', 'repeat'); syncPlayer(); closeSheet(); });
+}
+// Заучаване: всеки айет от откъса N пъти, после целият откъс M пъти (или без край)
+function hifzSheet(s, a) {
+  const cnt = S(s).ayahs;
+  const cur = player.range;
+  const R = cur && cur.s === s && a >= cur.from && a <= cur.to ? cur : null;
+  let { each, loops } = R || store.get('hifz');
+  const b = openSheet(`<h3>Заучаване на откъс</h3>
+    <p class="sheet-tr">${esc(S(s).name)} · всеки айет се чете няколко пъти, после целият откъс отначало. Повтаряйте след рецитатора.</p>
+    <div class="hifz-range">
+      <label><small>От айет</small><input class="num-in" id="hFrom" type="number" inputmode="numeric" min="1" max="${cnt}" value="${R ? R.from : a}"></label>
+      <span class="dash">—</span>
+      <label><small>До айет</small><input class="num-in" id="hTo" type="number" inputmode="numeric" min="1" max="${cnt}" value="${R ? R.to : Math.min(cnt, a + 4)}"></label>
+    </div>
+    <div class="sub">Всеки айет</div>
+    <div class="seg full">${[1, 2, 3, 5, 7, 10].map(n => `<button data-e="${n}" class="${each === n ? 'on' : ''}">${n}×</button>`).join('')}</div>
+    <div class="sub">Целият откъс</div>
+    <div class="seg full">${[1, 2, 3, 5, 10, 0].map(n => `<button data-l="${n}" class="${loops === n ? 'on' : ''}">${n ? n + '×' : '∞'}</button>`).join('')}</div>
+    <p class="hifz-sum" id="hSum"></p>
+    <button class="btn" id="hGo" style="width:100%">${icon('play')}Започни</button>`);
+  const val = () => {
+    let f = Math.max(1, Math.min(cnt, Math.round(+b.querySelector('#hFrom').value) || 1));
+    let t = Math.max(1, Math.min(cnt, Math.round(+b.querySelector('#hTo').value) || f));
+    return f <= t ? [f, t] : [t, f];
+  };
+  const sum = () => {
+    const [f, t] = val(), n = t - f + 1;
+    b.querySelector('#hSum').textContent = `${s}:${f}–${t} · ${plural(n, 'айет', 'айета')} · ` + (loops ? `общо ${plural(n * each * loops, 'прочит', 'прочита')}` : 'без край, докато спрете');
+  };
+  const pick = (attr, set) => b.querySelectorAll(`[${attr}]`).forEach(x => x.onclick = () => { set(+x.getAttribute(attr)); b.querySelectorAll(`[${attr}]`).forEach(y => y.classList.toggle('on', y === x)); sum(); });
+  pick('data-e', v => each = v);
+  pick('data-l', v => loops = v);
+  b.querySelectorAll('.num-in').forEach(i => i.addEventListener('input', sum));
+  b.querySelector('#hGo').onclick = () => {
+    const [f, t] = val();
+    store.set('hifz', { each, loops });
+    closeSheet();
+    player.playRange(s, f, t, each, loops);
+    if (route.name !== 'surah' || route.s !== s) go(`#/s/${s}/${f}`);
+  };
+  sum();
 }
 function reciterSheet(after) {
   const b = openSheet(`<h3>Рецитатор</h3><div class="opt-list">${RECITERS.map(r => `<button class="opt ${r.id === player.reciter ? 'on' : ''}" data-r="${r.id}">${icon('mic')}<span class="mid"><b>${esc(r.name)}</b><small>${esc(r.note)}</small></span>${r.id === player.reciter ? icon('check') : ''}</button>`).join('')}</div>`);
@@ -143,7 +196,7 @@ let route = { name: 'home' };
 function parse() {
   const h = location.hash.replace(/^#\/?/, '').split('/');
   if (h[0] === 's' && +h[1] >= 1 && +h[1] <= 114) return { name: 'surah', s: +h[1], a: +h[2] || 0 };
-  if (['prayer', 'bookmarks', 'settings', 'search'].includes(h[0])) return { name: h[0], q: decodeURIComponent(h[1] || '') };
+  if (['prayer', 'qibla', 'bookmarks', 'settings', 'search'].includes(h[0])) return { name: h[0], q: decodeURIComponent(h[1] || '') };
   return { name: 'home' };
 }
 function go(h) { if (location.hash === h) render(); else location.hash = h; }
@@ -155,10 +208,10 @@ async function render() {
   route = parse();
   cleanup.forEach(f => f()); cleanup = [];
   closeSheet();
-  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === (route.name === 'surah' || route.name === 'search' ? 'home' : route.name)));
+  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === ({ surah: 'home', search: 'home', qibla: 'prayer' }[route.name] || route.name)));
   await loadMeta();
   if (route.name === 'surah' && prev.name === 'surah' && prev.s === route.s && route.a) { jumpTo(route.a); return; }
-  const r = { home: renderHome, surah: renderSurah, prayer: renderPrayer, bookmarks: renderBookmarks, settings: renderSettings, search: renderSearch }[route.name];
+  const r = { home: renderHome, surah: renderSurah, prayer: renderPrayer, qibla: renderQibla, bookmarks: renderBookmarks, settings: renderSettings, search: renderSearch }[route.name];
   await r();
   if (route.name !== 'surah') window.scrollTo(0, 0);
   syncPlayer();
@@ -344,6 +397,7 @@ async function ayahSheet(s, a) {
       <button class="act" data-x="bm">${icon(bm ? 'bookmark-fill' : 'bookmark')}${bm ? 'Махни отметката' : 'Отметка'}</button>
       <button class="act" data-x="copy">${icon('copy')}Копирай</button>
       <button class="act" data-x="share">${icon('share')}Сподели</button>
+      <button class="act wide" data-x="hifz">${icon('star')}Заучаване на откъс от тук…</button>
       <button class="act wide" data-x="rec">${icon('mic')}Рецитатор: ${esc(reciterById(player.reciter).name)}</button>
     </div>`);
   b.onclick = async e => {
@@ -363,7 +417,8 @@ async function ayahSheet(s, a) {
       if (navigator.share) { try { await navigator.share({ title: `${S(s).name} ${s}:${a}`, text, url }); } catch (err) {} }
       else { try { await navigator.clipboard.writeText(text + '\n' + url); toast('Копирано за споделяне'); } catch (err) {} }
       closeSheet();
-    } else if (x === 'rec') reciterSheet();
+    } else if (x === 'hifz') hifzSheet(s, a);
+    else if (x === 'rec') reciterSheet();
   };
 }
 function sizeSheet() {
@@ -427,7 +482,7 @@ async function renderBookmarks() {
 // ---------- намаз ----------
 let pDay = 0, showMonth = false;
 async function renderPrayer() {
-  view.innerHTML = `<div class="topbar"><h1>Времена за намаз</h1><button class="ib" id="locBtn" aria-label="Намери ме">${icon('locate')}</button></div><div class="loader"></div>`;
+  view.innerHTML = `<div class="topbar"><h1>Времена за намаз</h1><a class="ib" href="#/qibla" aria-label="Кибла">${icon('compass')}</a><button class="ib" id="locBtn" aria-label="Намери ме">${icon('locate')}</button></div><div class="loader"></div>`;
   await P.loadPrayer();
   $('#locBtn').onclick = locate;
   if (route.q) { // връзка за споделяне: #/prayer/Рибново
@@ -437,13 +492,7 @@ async function renderPrayer() {
     history.replaceState(null, '', '#/prayer'); route.q = '';
   }
   const place = store.get('place');
-  if (!place) {
-    view.querySelector('.loader').outerHTML = `<div class="card empty fade-in" style="margin-top:10px">${icon('pin')}<h3 style="font:700 22px var(--serif);color:var(--text);margin:6px 0">Къде се намирате?</h3>
-      <p>Времената се изчисляват по официалния календар на Главно мюфтийство за всеки град и село в България.</p>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px"><button class="btn" id="gl">${icon('locate')}Намери ме</button><button class="btn ghost" id="pick">${icon('search')}Избери от списъка</button></div></div>`;
-    $('#gl').onclick = locate; $('#pick').onclick = placeSheet;
-    return;
-  }
+  if (!place) { askPlace('Времената се изчисляват по официалния календар на Главно мюфтийство за всеки град и село в България.'); return; }
   const vm = store.get('villageMode');
   const n = P.nowBG();
   const base = new Date(Date.UTC(n.y, n.m - 1, n.d + pDay));
@@ -462,6 +511,7 @@ async function renderPrayer() {
       <button class="btn ghost" id="monthBtn" style="flex:1">${icon('calendar')}${showMonth ? 'Скрий' : 'Покажи'} календара за ${BG_MONTHS[m - 1]}</button>
     </div>
     <div id="month"></div>
+    <a class="card continue q-link" href="#/qibla"><span class="ic-wrap">${icon('compass')}</span><div><small>Посока на киблата</small><b>${degFmt(Q.qibla(place).bearing)}</b> <span class="muted">· ${Q.dirName(Q.qibla(place).bearing)}</span></div>${icon('chev-r')}</a>
     <div class="card note">${sourceNote(place, r)}</div>
   </div>`;
   $('#placeBtn').onclick = placeSheet;
@@ -480,8 +530,17 @@ async function renderPrayer() {
   };
   tick(); const t = setInterval(tick, 1000); cleanup.push(() => clearInterval(t));
 }
+function askPlace(text) {
+  view.querySelector('.loader').outerHTML = `<div class="card empty fade-in" style="margin-top:10px">${icon('pin')}<h3 style="font:700 22px var(--serif);color:var(--text);margin:6px 0">Къде се намирате?</h3>
+    <p>${text}</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px"><button class="btn" id="gl">${icon('locate')}Намери ме</button><button class="btn ghost" id="pick">${icon('search')}Избери от списъка</button></div></div>`;
+  $('#gl').onclick = locate; $('#pick').onclick = placeSheet;
+}
 function sourceNote(place, r) {
   const src = `<a href="https://www.grandmufti.bg/bg/home/vremena-za-namaz.html" target="_blank" rel="noopener" style="color:var(--accent)">Главно мюфтийство</a>`;
+  return sourceText(place, r, src) + (P.checkedOn() ? ` Календарът е сверен с Мюфтийството на ${P.checkedOn()}` : '');
+}
+function sourceText(place, r, src) {
   if (r.official) return `Официални времена за <b>${esc(place.name)}</b> по календара на ${src}.`;
   const town = r.ref.t.name, ex = r.extra;
   if (store.get('villageMode') === 'town' || ex === 0)
@@ -531,6 +590,73 @@ function locate() {
     pDay = 0;
     route.name === 'prayer' ? renderPrayer() : render();
   }, err => toast(err.code === 1 ? 'Няма разрешение за местоположение' : 'Не успях да намеря местоположението'), { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
+}
+
+// ---------- кибла ----------
+const degFmt = b => b.toFixed(1).replace('.', ',') + '°';
+async function renderQibla() {
+  view.innerHTML = `<div class="topbar"><button class="ib" onclick="history.length>1?history.back():location.hash='#/prayer'" aria-label="Назад">${icon('chev-l')}</button><h1>Кибла<small>посока към Кябе</small></h1></div><div class="loader"></div>`;
+  const place = store.get('place');
+  if (!place) { askPlace('Посоката на киблата се изчислява за избраното населено място.'); return; }
+  const { bearing, km } = Q.qibla(place);
+  const decl = Q.declination(place);
+  const n = P.nowBG();
+  const sunUtc = Q.sunInQibla(place, n.y, n.m, n.d, bearing);
+  const sunAt = sunUtc == null ? null : sunUtc + P.sofiaOffset(n.y, n.m, n.d);
+  const touch = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  const ask = Q.needsPermission(); // iPhone пита за разрешение след докосване
+  const face = `Застанете с лице на ${Q.dirName(bearing)} — ${degFmt(bearing)} от севера по часовниковата стрелка.`;
+  view.querySelector('.loader').outerHTML = `<div class="fade-in">
+    <button class="card place-bar" id="placeBtn" style="width:100%;text-align:left"><span class="ic-wrap">${icon('pin')}</span><span class="mid"><b>${esc(P.placeLabel(place))}</b><small>${esc(P.placeSub(place))}</small></span><span class="chip">Промени</span></button>
+    <div class="card qibla-card" id="qCard">
+      <div class="compass"><svg class="dial" id="dial" viewBox="0 0 300 300" aria-hidden="true">${dialSvg(bearing)}</svg><span class="needle"></span>
+        <div class="q-center"><b>${degFmt(bearing)}</b><small>${Q.dirName(bearing)}</small></div></div>
+      <p class="q-status" id="qStatus">${ask ? 'Включете компаса и завъртете телефона, докато Кябе застане под стрелката.' : touch ? 'Търся компаса…' : face}</p>
+      ${ask ? `<button class="btn" id="qStart">${icon('compass')}Включи компаса</button>` : ''}
+    </div>
+    <div class="card times">
+      <div class="trow"><span class="tic">◈</span><span class="mid"><b>Посока</b><small>от географския север, по часовниковата стрелка</small></span><span class="t">${degFmt(bearing)}</span></div>
+      <div class="trow"><span class="tic">☀</span><span class="mid"><b>Слънцето сочи киблата</b><small>${sunAt == null ? 'днес не е над хоризонта в тази посока' : 'днес — застанете с лице към слънцето, сянката сочи обратно'}</small></span><span class="t">${sunAt == null ? '—' : P.fmt(sunAt)}</span></div>
+      <div class="trow"><span class="tic">✈</span><span class="mid"><b>До Мека</b><small>по най-краткия път</small></span><span class="t">${Math.round(km).toLocaleString('bg-BG')} км</span></div>
+    </div>
+    <div class="card note">Посоката е изчислена по голям кръг (най-краткия път по земното кълбо) от <b>${esc(P.placeLabel(place))}</b> до Кябе в Мека. Компасът на телефона сочи магнитния север, затова е добавено магнитното отклонение за България (≈${decl.toFixed(1).replace('.', ',')}° на изток).<br><br>Дръжте телефона хоризонтално, далеч от метални предмети и магнити. Ако стрелката се държи странно, опишете няколко пъти осмица във въздуха с телефона — така компасът се калибрира.</div>
+  </div>`;
+  $('#placeBtn').onclick = placeSheet;
+
+  // Компас: на телефон стрелката се върти; без сензор остава картата с посоката
+  const card = $('#qCard'), dial = $('#dial'), st = $('#qStatus');
+  let shown = null, aligned = false, got = false;
+  const onHeading = mag => {
+    got = true;
+    const h = (mag + decl + 360) % 360; // накъде сочи телефонът спрямо географския север
+    // плавно въртене, без скок при преминаване през 0°/360°
+    shown = shown == null ? h : shown + (((h - shown) % 360 + 540) % 360 - 180) * 0.3;
+    dial.style.transform = `rotate(${-shown}deg)`;
+    const off = ((bearing - h) % 360 + 540) % 360 - 180; // + надясно, − наляво
+    const now = Math.abs(off) < 4;
+    if (now !== aligned) { aligned = now; card.classList.toggle('aligned', now); if (now) navigator.vibrate?.(40); }
+    st.textContent = now ? '✓ Вие сте с лице към киблата' : `Завъртете се ${off > 0 ? 'надясно' : 'наляво'} с ${Math.round(Math.abs(off))}°`;
+  };
+  const start = async () => {
+    if (ask && !(await Q.askPermission())) { st.textContent = 'Няма разрешение за компаса. Разрешете „Движение и ориентация“ в настройките на браузъра.'; return; }
+    $('#qStart')?.remove();
+    if (touch) st.textContent = 'Търся компаса…';
+    cleanup.push(Q.watchHeading(onHeading));
+    const t = setTimeout(() => { if (!got && touch) st.textContent = 'Това устройство не дава посока от компас. ' + face; }, 3000);
+    cleanup.push(() => clearTimeout(t));
+  };
+  if (ask) $('#qStart').onclick = start;
+  else start(); // Android и компютри не питат — слушаме веднага
+}
+function dialSvg(bearing) {
+  let s = '<circle class="face" cx="150" cy="150" r="146"/>';
+  for (let d = 0; d < 360; d += 5) s += `<line class="${d % 30 ? '' : 'mj'}" x1="150" y1="10" x2="150" y2="${d % 30 ? 18 : 26}" transform="rotate(${d} 150 150)"/>`;
+  for (let d = 30; d < 360; d += 30) if (d % 90) s += `<text class="deg" x="150" y="40" transform="rotate(${d} 150 150)">${d}</text>`;
+  s += [['С', 0], ['И', 90], ['Ю', 180], ['З', 270]].map(([t, d]) => `<text class="${d ? 'cd' : 'cd n'}" x="150" y="44" transform="rotate(${d} 150 150)">${t}</text>`).join('');
+  // Кябе в посоката на киблата
+  s += `<g transform="rotate(${bearing} 150 150)"><line class="ql" x1="150" y1="98" x2="150" y2="84"/>
+    <g class="kaaba" transform="translate(150 72)"><rect x="-10" y="-10" width="20" height="20" rx="2.5"/><rect class="band" x="-10" y="-5.5" width="20" height="3.2"/></g></g>`;
+  return s + '<circle class="hub" cx="150" cy="150" r="54"/>';
 }
 
 // ---------- настройки ----------

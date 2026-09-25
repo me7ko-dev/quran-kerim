@@ -349,6 +349,47 @@ body.playing main { padding-bottom: calc(var(--tab) + 110px); }
 .month tr.today td { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .month tr.fri td:first-child { color: var(--gold); }
 
+/* ---------- кибла ---------- */
+.q-link { margin-top: 14px; }
+.qibla-card { padding: 26px 18px 20px; text-align: center; margin-bottom: 14px; }
+.compass { position: relative; width: min(300px, 76vw); aspect-ratio: 1; margin: 0 auto; }
+.compass .dial { display: block; width: 100%; height: 100%; will-change: transform; }
+.dial .face { fill: var(--surface-2); stroke: var(--line); stroke-width: 2; transition: fill .3s, stroke .3s; }
+.dial .hub { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.dial line { stroke: var(--muted); stroke-width: 1.2; opacity: .55; }
+.dial line.mj { stroke: var(--text); stroke-width: 2; opacity: .75; }
+.dial text { fill: var(--muted); text-anchor: middle; dominant-baseline: central; font-family: var(--ui); }
+.dial text.cd { font-size: 19px; font-weight: 800; fill: var(--text); }
+.dial text.n { fill: #c0392b; }
+.dial text.deg { font-size: 10.5px; font-weight: 600; opacity: .75; }
+.dial .ql { stroke: var(--gold); stroke-width: 3; stroke-linecap: round; opacity: 1; }
+.dial .kaaba rect { fill: #1b1b1b; stroke: var(--gold); stroke-width: 1.2; }
+.dial .kaaba .band { fill: var(--gold); stroke: none; }
+.needle { position: absolute; left: 50%; top: -10px; transform: translateX(-50%); width: 0; height: 0; border: 11px solid transparent; border-top: 20px solid var(--accent); border-bottom: 0; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); transition: border-color .3s; }
+.q-center { position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none; }
+.q-center b { font: 700 clamp(22px, 7vw, 28px)/1 var(--ui); font-variant-numeric: tabular-nums; }
+.q-center small { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.q-status { margin: 18px auto 14px; max-width: 420px; font-weight: 600; font-size: 15px; min-height: 1.5em; }
+.qibla-card.aligned .dial .face { fill: var(--accent-soft); stroke: var(--accent); }
+.qibla-card.aligned .needle { border-top-color: var(--gold); }
+.qibla-card.aligned .q-status { color: var(--accent); }
+
+/* ---------- заучаване ---------- */
+.hifz-range { display: flex; align-items: flex-end; gap: 10px; margin: 2px 0 4px; }
+.hifz-range label { flex: 1; min-width: 0; }
+.hifz-range small { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+.hifz-range .dash { padding-bottom: 13px; color: var(--muted); }
+.num-in {
+  width: 100%; height: 50px; padding: 0 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2);
+  font-size: 20px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; outline: none;
+}
+.num-in:focus { border-color: var(--accent); }
+.seg.full { display: flex; width: 100%; }
+.seg.full button { flex: 1; padding: 0 4px; }
+.hifz-sum { font-size: 13.5px; color: var(--muted); margin: 16px 0 14px; }
+.ayah.in-range .ayah-key { background: var(--gold-soft); color: var(--gold); }
+.mushaf .ma.in-range:not(.cur) { background: color-mix(in srgb, var(--gold-soft) 55%, transparent); }
+
 /* ---------- настройки ---------- */
 .set-group { padding: 6px 0; margin-bottom: 16px; }
 .set-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }

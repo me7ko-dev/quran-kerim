@@ -1,4 +1,4 @@
-# Бележки от сесиите (обновено 2026-09-25)
+# Бележки от сесиите (обновено 2026-09-25, втора сесия)
 
 > Прочети това вместо да преглеждаш репото наново.
 
@@ -6,8 +6,10 @@
 Статичен сайт (без build). Push в `main` → Pages се обновява за ~1 мин.
 
 ## Устройство
-- `js/app.js` — рутер (`#/`, `#/s/2/255`, `#/prayer`, `#/prayer/<място>`, `#/bookmarks`, `#/settings`, `#/search/<дума>`) и всички екрани.
-- `js/audio.js` — списък рецитатори (папки на everyayah.com) + плейър (един `<audio>` заради iPhone; режими single/continue/repeat).
+- `js/app.js` — рутер (`#/`, `#/s/2/255`, `#/prayer`, `#/prayer/<място>`, `#/qibla`, `#/bookmarks`, `#/settings`, `#/search/<дума>`) и всички екрани.
+- `js/audio.js` — списък рецитатори (папки на everyayah.com) + плейър (един `<audio>` заради iPhone; режими single/continue/repeat/range).
+  `range` = заучаване: `playRange(s, from, to, each, loops)`, loops 0 = без край; не се пази в `play`, само `hifz: {each, loops}`.
+- `js/qibla.js` — посока по голям кръг, магнитно отклонение (≈5.3° + 0.23 × (дълж. − 23.3)), час „слънцето сочи киблата“, компас (iPhone: `webkitCompassHeading` + разрешение; Android: `deviceorientationabsolute`).
 - `js/prayer.js` — времена за намаз; `js/store.js` — настройки в localStorage (`qk:v1`).
 - `data/s/<n>.json` — `[арабски QPC Hafs, превод Теофанов, страница, джуз]` за всеки айет; `data/meta.json` — сури (имена на български) и джузове.
 - `data/prayer.json` — `base` (365 реда за София, зимно време UTC+2) + `towns` (48 града с `shift` в минути).
@@ -22,12 +24,19 @@
 
 ## Инструменти (`tools/`)
 - `update-prayer.mjs` — сваля от grandmufti.bg (POST month/town), открива DST скоковете в таблицата, пише prayer.json.
+  Пуска се от `.github/workflows/update-prayer.yml` (2-ро число, 04:17 UTC, и ръчно); пише `changed=true/false` в `$GITHUB_OUTPUT`.
 - `check-reciters.mjs` — HEAD на случайни айети за всеки рецитатор (последно: всичките 25 OK).
 - `cdp-shot.mjs` — снимка с емулация на телефон през Edge DevTools; може да изпълни JS преди снимката.
   (`msedge --screenshot` показва празно при превъртане — ползвай cdp-shot.)
 - `serve.mjs` — локален сървър (порт 8765 е зает от друго, ползвай 8931).
 - `fetch-quran.mjs`, `split-quran.mjs`, `build-places.mjs`, `fetch-muftiate.mjs`, `fit.mjs`… — еднократни, за пресъздаване на данните.
 
+## Облачна сесия (claude.ai/code)
+- Изходящата мрежа е ограничена: grandmufti.bg, everyayah.com и Google Fonts са блокирани — update-prayer и check-reciters не могат да се пуснат там.
+- Тест в браузър: глобален Playwright (`NODE_PATH=/opt/node22/lib/node_modules`) + `node tools/serve.mjs 8931`;
+  компасът се симулира с `new DeviceOrientationEvent('deviceorientationabsolute', { alpha, absolute: true })`.
+
 ## Идеи за после
 - Известия за намаз (изискват push сървър или отворено приложение).
-- Кибла компас, тефсир, превод на турски, заучаване по диапазон айети, изтегляне на аудио офлайн.
+- Тефсир, превод на турски, изтегляне на аудио офлайн.
+- Готово: Кибла компас, заучаване по диапазон айети, месечният GitHub Action.

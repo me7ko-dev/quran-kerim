@@ -42,9 +42,11 @@ export class Player extends EventTarget {
     this.pre.preload = 'auto';
     this.pre.muted = true;
     this.cur = null;                 // { s, a, bism }
-    this.mode = 'continue';          // single | continue | repeat
+    this.mode = 'continue';          // single | continue | repeat | range
     this.repeatN = 3;
     this.rep = 1;
+    this.range = null;               // заучаване: { s, from, to, each, loops } (loops 0 = без край)
+    this.loop = 1;
     this.reciter = 'Alafasy_128kbps';
     this.rate = 1;
     this.autoNext = true;
@@ -75,16 +77,27 @@ export class Player extends EventTarget {
   get playing() { return !!this.cur && !this.el.paused; }
   emit() { this.dispatchEvent(new CustomEvent('state')); }
 
-  // mode: single — само този айет; continue — нататък поред; repeat — този айет N пъти
+  // mode: single — само този айет; continue — нататък поред; repeat — този айет N пъти;
+  // range — откъс за заучаване (виж playRange)
   play(s, a, mode = this.mode) {
+    const R = this.range;
+    if (mode === 'range' && !(R && R.s === s && a >= R.from && a <= R.to)) mode = 'continue';
+    if (mode === 'range' && this.done) this.loop = 1; // откъсът беше завършен — нови кръгове
     this.mode = mode;
     this.rep = 1;
     const bism = mode === 'continue' && a === 1 && s !== 1 && s !== 9;
     this.cur = { s, a, bism };
     this.load(true);
   }
+  // Всеки айет от откъса се чете `each` пъти, после целият откъс отначало — `loops` пъти
+  playRange(s, from, to, each, loops) {
+    this.range = { s, from, to, each, loops };
+    this.loop = 1;
+    this.play(s, from, 'range');
+  }
   load(autoplay) {
     const { s, a, bism } = this.cur;
+    this.done = false;
     this.el.src = bism ? audioUrl(this.reciter, 1, 1) : audioUrl(this.reciter, s, a);
     this.el.playbackRate = this.rate;
     this.el.defaultPlaybackRate = this.rate;
@@ -99,6 +112,12 @@ export class Player extends EventTarget {
     if (bism) return { s, a, bism: false };
     if (this.mode === 'single') return null;
     if (this.mode === 'repeat') return this.rep < this.repeatN ? { s, a, bism: false, again: true } : null;
+    if (this.mode === 'range') {
+      const R = this.range;
+      if (this.rep < R.each) return { s, a, bism: false, again: true };
+      if (a < R.to) return { s, a: a + 1, bism: false };
+      return !R.loops || this.loop < R.loops ? { s, a: R.from, bism: false, round: true } : null;
+    }
     if (a < this.count(s)) return { s, a: a + 1, bism: false };
     if (this.autoNext && s < 114) return { s: s + 1, a: 1, bism: s + 1 !== 9 };
     return null;
@@ -113,14 +132,18 @@ export class Player extends EventTarget {
     const n = this.nextItem();
     if (!n) { this.cur = { ...this.cur, bism: false }; this.el.pause(); this.done = true; this.emit(); this.dispatchEvent(new CustomEvent('end')); return; }
     if (n.again) { this.rep++; this.el.currentTime = 0; this.el.play(); this.emit(); return; }
-    this.cur = n;
+    this.rep = 1;
+    if (n.round) this.loop++;
+    this.cur = { s: n.s, a: n.a, bism: n.bism };
     this.load(true);
   }
   step(d) {
     if (!this.cur) return;
     let { s, a } = this.cur;
     a += d;
-    if (a < 1) { if (s === 1) a = 1; else { s--; a = this.count(s); } }
+    const R = this.mode === 'range' && this.range;
+    if (R) a = Math.max(R.from, Math.min(R.to, a)); // при заучаване остава в откъса
+    else if (a < 1) { if (s === 1) a = 1; else { s--; a = this.count(s); } }
     else if (a > this.count(s)) { if (s === 114) a = this.count(s); else { s++; a = 1; } }
     this.rep = 1;
     this.cur = { s, a, bism: false };
@@ -130,7 +153,12 @@ export class Player extends EventTarget {
   pause() { this.el.pause(); }
   resume() {
     if (!this.cur) return;
-    if (this.done) { this.done = false; this.play(this.cur.s, this.cur.a); return; }
+    if (this.done) {
+      const R = this.range;
+      if (this.mode === 'range') this.playRange(R.s, R.from, R.to, R.each, R.loops); // откъсът отначало
+      else this.play(this.cur.s, this.cur.a);
+      return;
+    }
     this.el.play().catch(() => {});
   }
   stop() { this.el.pause(); this.el.removeAttribute('src'); this.el.load(); this.cur = null; this.emit(); }

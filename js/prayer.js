@@ -74,6 +74,12 @@ export function timesFor(place, y, m, d, villageMode = 'corrected') {
   return { times: row.map(v => v + extra + off), ref: r, official: !!official, extra };
 }
 
+// Кога за последно е сверен календарът с grandmufti.bg (обновява се от GitHub Actions)
+export function checkedOn() {
+  const m = data && /^(\d{4})-(\d{2})-(\d{2})$/.exec(data.checked || '');
+  return m ? `${+m[3]}.${m[2]}.${m[1]} г.` : '';
+}
+
 export const fmt = min => { min = ((min % 1440) + 1440) % 1440; return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`; };
 
 // Следващото време за намаз спрямо сега

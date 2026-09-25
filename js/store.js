@@ -10,6 +10,7 @@ const DEFAULTS = {
   rate: 1,
   play: 'continue',       // single | continue | repeat
   repeatN: 3,
+  hifz: { each: 3, loops: 3 }, // заучаване на откъс: повторения на айет и на целия откъс (0 = без край)
   follow: true,           // превърта до айета, който се чете
   autoNext: true,         // продължава със следващата сура
   place: null,            // избраното населено място за намаз

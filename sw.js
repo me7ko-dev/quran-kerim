@@ -1,8 +1,8 @@
 // Service worker: приложението се отваря и без интернет.
 // Кодът — първо от мрежата (за да идват обновленията), текстът на Корана — от кеша.
-const SHELL = 'qk-shell-v1';
+const SHELL = 'qk-shell-v2';
 const DATA = 'qk-data-v1';
-const SHELL_FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/audio.js', 'js/prayer.js', 'fonts/UthmanicHafs.woff2', 'data/meta.json', 'data/prayer.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
+const SHELL_FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/audio.js', 'js/prayer.js', 'js/qibla.js', 'fonts/UthmanicHafs.woff2', 'data/meta.json', 'data/prayer.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
