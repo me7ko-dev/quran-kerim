@@ -1,0 +1,8 @@
+# сурови данни, от които са генерирани файловете в data/
+tools/osm*.json
+tools/lv.json
+tools/muftiate-raw.json
+tools/quran-full.json
+tools/dy-*.json
+tools/wb*.html
+node_modules/
