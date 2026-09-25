@@ -66,3 +66,5 @@ const old = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT)) : null;
 const same = old && JSON.stringify({ ...old, checked: 0 }) === JSON.stringify({ ...out, checked: 0 });
 if (same) { old.checked = out.checked; fs.writeFileSync(OUT, JSON.stringify(old)); console.log('\nБез промяна.'); }
 else { fs.writeFileSync(OUT, JSON.stringify(out)); console.log('\nОбновено: ' + OUT); }
+// за GitHub Actions: различно съобщение при истинска промяна
+if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${!same}\n`);

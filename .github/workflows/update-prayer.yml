@@ -1,0 +1,40 @@
+# Всеки месец проверява календара на Главно мюфтийство и обновява data/prayer.json.
+# Push в main обновява и GitHub Pages. Може да се пусне и ръчно от раздела Actions.
+name: Времена за намаз
+
+on:
+  schedule:
+    - cron: '17 4 2 * *' # 2-ро число на месеца, ~07:17 българско време
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prayer
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Сваляне от grandmufti.bg
+        id: fetch
+        run: node tools/update-prayer.mjs
+      - name: Запис в репото
+        run: |
+          git add data/prayer.json
+          if git diff --cached --quiet; then echo "Няма какво да се запише."; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ "${{ steps.fetch.outputs.changed }}" = "true" ]; then
+            git commit -m "Времена за намаз: нов календар от Мюфтийството ($(date -u +%F))"
+          else
+            git commit -m "Времена за намаз: проверено $(date -u +%F), без промяна"
+          fi
+          git push
