@@ -242,6 +242,7 @@ function reciterSheet(after) {
 
 // ---------- рутер ----------
 let route = { name: 'home' };
+const firstRoute = route; // преди първото рисуване
 function parse() {
   const h = location.hash.replace(/^#\/?/, '').split('/');
   const s = +h[1];
@@ -272,6 +273,10 @@ async function render() {
   await r();
   if (route !== mine) return;
   if (route.name !== 'surah') window.scrollTo(0, 0);
+  const title = route.name === 'surah' ? S(route.s).name : { prayer: 'Времена за намаз', qibla: 'Кибла', bookmarks: 'Отметки', settings: 'Настройки', search: 'Търсене' }[route.name];
+  document.title = (title ? title + ' · ' : '') + 'Куран-и Керим';
+  // екранните четци започват от новото съдържание, а не от изчезналия бутон
+  if (prev !== firstRoute && !view.contains(document.activeElement) && $('#sheet').hidden) view.focus({ preventScroll: true });
   syncPlayer();
   stickyBar();
 }
