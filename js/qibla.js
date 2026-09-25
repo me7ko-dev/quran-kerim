@@ -82,8 +82,10 @@ export function watchHeading(onHeading) {
   return () => EVS.forEach(ev => window.removeEventListener(ev, h, true));
 }
 
-// iPhone иска разрешение, дадено с докосване
-export const needsPermission = () => typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+// iPhone иска разрешение, дадено с докосване.
+// Chrome/Edge 153+ също имат requestPermission (веднага връща granted), затова питаме само браузъри
+// без абсолютен компас (deviceorientationabsolute) — т.е. Safari на iPhone/iPad.
+export const needsPermission = () => typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function' && !('ondeviceorientationabsolute' in window);
 export async function askPermission() {
   try { return (await DeviceOrientationEvent.requestPermission()) === 'granted'; } catch (e) { return false; }
 }

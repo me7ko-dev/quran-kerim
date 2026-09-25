@@ -256,7 +256,9 @@ async function render() {
   const title = route.name === 'surah' ? S(route.s).name : { prayer: 'Времена за намаз', qibla: 'Кибла', bookmarks: 'Отметки', settings: 'Настройки', search: 'Търсене' }[route.name];
   document.title = (title ? title + ' · ' : '') + 'Куран-и Керим';
   // екранните четци започват от новото съдържание, а не от изчезналия бутон
-  if (prev !== firstRoute && !view.contains(document.activeElement) && $('#sheet').hidden) view.focus({ preventScroll: true });
+  // (само ако фокусът е изчезнал или е бил в навигацията — не и от плейъра при автоматична смяна на сурата)
+  const ae = document.activeElement;
+  if (prev !== firstRoute && $('#sheet').hidden && (!ae || ae === document.body || ae.closest('.rail, .tabbar'))) view.focus({ preventScroll: true });
   syncPlayer();
   stickyBar();
 }
@@ -406,7 +408,7 @@ async function renderSurah() {
   const io = new IntersectionObserver(es => {
     es.forEach(e => e.isIntersecting ? vis.add(+e.target.dataset.a) : vis.delete(+e.target.dataset.a));
     if (vis.size) { const a = Math.min(...vis); clearTimeout(saveT); saveT = setTimeout(() => store.set('last', { s: n, a }), 600); }
-  }, { rootMargin: '-80px 0px -55% 0px' });
+  }, { rootMargin: `-${topPad() + 1}px 0px -55% 0px` }); // същото отстъпване като при скок към айет
   view.querySelectorAll('[data-a]').forEach(e => io.observe(e));
   cleanup.push(() => io.disconnect());
 
@@ -414,6 +416,7 @@ async function renderSurah() {
   else window.scrollTo(0, 0);
 }
 let saveT;
+const topPad = () => Math.round(parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop)) || 84;
 function jumpTo(a, instant) {
   const el = document.getElementById('a-' + a);
   if (!el) return;
@@ -808,10 +811,12 @@ async function offlineStatus() {
 }
 async function downloadAll() {
   const b = $('#offB'); b.disabled = true;
+  const c = await caches.open((await caches.keys()).find(k => k.startsWith('qk-data')) || 'qk-data-v1');
+  const have = new Set((await c.keys()).map(r => new URL(r.url).pathname.replace(/^.*\/data\//, 'data/')));
+  const urls = META.surahs.map(s => `data/s/${s.n}.json`).filter(u => !have.has(u));
   let done = 0;
-  const jobs = META.surahs.map(s => loadSurah(s.n));
-  await Promise.all(jobs.map(j => j.then(() => { done++; if ($('#offS')) $('#offS').textContent = `Изтеглям… ${Math.round(done / jobs.length * 100)}%`; }).catch(() => {})));
-  setTimeout(offlineStatus, 500);
+  await Promise.all(urls.map(u => c.add(u).then(() => { done++; if ($('#offS')) $('#offS').textContent = `Изтеглям… ${Math.round(done / urls.length * 100)}%`; }).catch(() => {})));
+  setTimeout(offlineStatus, 300);
 }
 
 // ---------- странична лента: следващ намаз ----------
@@ -836,14 +841,17 @@ setInterval(railPrayer, 1000); // показва секундите в посл�
 store.on(k => { if (k === 'place' || k === 'villageMode') railPrayer(); });
 
 // ---------- нов ден ----------
-let today = P.nowBG().d;
+let today = P.nowBG().d, prayerStale = false;
 setInterval(() => {
   const d = P.nowBG().d;
-  if (d === today) return;
-  today = d;
+  if (d !== today) {
+    today = d;
+    if (pDay) pDay--; // pDay се брои от днес — така разглежданата дата не се мести
+    prayerStale = true;
+    if (route.name === 'home' && $('.hero-date')) $('.hero-date').innerHTML = heroDate();
+  }
   // само това, което зависи от датата: без затваряне на листове, превъртане или изтриване на търсенето
-  if (route.name === 'prayer' && pDay === 0) renderPrayer();
-  else if (route.name === 'home' && $('.hero-date')) $('.hero-date').innerHTML = heroDate();
+  if (prayerStale && $('#sheet').hidden) { prayerStale = false; if (route.name === 'prayer') renderPrayer(); }
 }, 15000);
 
 // ---------- старт ----------

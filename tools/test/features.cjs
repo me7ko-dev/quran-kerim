@@ -10,8 +10,8 @@ module.exports = async (b, { stopServer }) => {
     ok('посоката за София е 141,9°', (await p.textContent('.q-center b')) === '141,9°');
     const fire = alpha => p.evaluate(a => dispatchEvent(new DeviceOrientationEvent('deviceorientationabsolute', { alpha: a, absolute: true })), alpha);
     for (let i = 0; i < 30; i++) await fire(360 - 100);
-    ok('Android: подсказва накъде да се завърти', /надясно с 37°/.test(await p.textContent('#qStatus')));
-    for (let i = 0; i < 40; i++) await fire(360 - (141.86 - 5.3)); // + магнитното отклонение за София
+    ok('Android: подсказва накъде да се завърти', /надясно с 36°/.test(await p.textContent('#qStatus')));
+    for (let i = 0; i < 40; i++) await fire(360 - (141.86 - 5.73)); // + магнитното отклонение за София (WMM 2026)
     ok('Android: разпознава посоката към киблата', (await p.$eval('#qCard', e => e.className)).includes('aligned'));
     for (let i = 0; i < 40; i++) await fire(5);
     const t1 = parseFloat(await p.$eval('#dial', e => e.style.transform.slice(7)));

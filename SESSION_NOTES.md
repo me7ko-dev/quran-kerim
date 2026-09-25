@@ -9,16 +9,18 @@
 - `js/app.js` — рутер (`#/`, `#/s/2/255`, `#/prayer`, `#/prayer/<място>`, `#/qibla`, `#/bookmarks`, `#/settings`, `#/search/<дума>`) и всички екрани.
 - `js/audio.js` — списък рецитатори (папки на everyayah.com) + плейър (един `<audio>` заради iPhone; режими single/continue/repeat/range).
   `range` = заучаване: `playRange(s, from, to, each, loops)`, loops 0 = без край; не се пази в `play`, само `hifz: {each, loops}`.
-- `js/qibla.js` — посока по голям кръг, магнитно отклонение (≈5.3° + 0.23 × (дълж. − 23.3)), час „слънцето сочи киблата“, компас (iPhone: `webkitCompassHeading` + разрешение; Android: `deviceorientationabsolute`).
+- `js/qibla.js` — посока по голям кръг, магнитно отклонение (линейна формула по NOAA WMM за 2026–2029, грешка < 0.06°), час „слънцето сочи киблата“, компас (iPhone: `webkitCompassHeading` + разрешение; Android: `deviceorientationabsolute`).
+  Разрешение се иска само ако няма `ondeviceorientationabsolute` — Chrome/Edge 153+ също имат `requestPermission`.
 - `js/prayer.js` — времена за намаз; `js/store.js` — настройки в localStorage (`qk:v1`).
 - `data/s/<n>.json` — `[арабски QPC Hafs, превод Теофанов, страница, джуз]` за всеки айет; `data/meta.json` — сури (имена на български) и джузове.
-- `data/tr/<n>.json` — турски превод на Диянет (Tanzil), масив по айети; от `tools/fetch-turkish.mjs`. Настройка `trLang`: bg | tr | both.
-  Търсенето винаги включва българския + избраните езици; турското сравнение приравнява I/ı/İ/i.
+- Само български превод (Теофанов). Турският (Диянет) беше добавен и махнат на 25.09.2026: старото издание (Tanzil/quran.com)
+  повтаряше един и същ текст в 843 айета (Диянет превежда някои поредни айети с едно изречение). Ако се върне — само
+  официалния мял от kuran.diyanet.gov.tr, с обединените айети показани веднъж (напр. 1:2–4).
 - `data/prayer.json` — `base` (365 реда за София, зимно време UTC+2) + `towns` (48 града с `shift` в минути).
 - `data/places.json` — 6 911 населени места от OSM: `[име, 0 град/1 село/2 махала, lat, lon, област, община]`.
 - Шрифтове: всички са в `fonts/` (Manrope, Cormorant Garamond — поднабори latin/latin-ext/cyrillic от @fontsource-variable; лиценз `fonts/OFL.txt`). Без Google Fonts.
-- `sw.js` — офлайн. Код: мрежа първо, кеш при липса на връзка (страницата и prayer.json не чакат над 4 сек), `qk-shell-vN`. Текст/шрифт: кеш първо в `qk-data-v1` —
-  увеличи го САМО при поправка на текст в `data/s/`, `data/tr/` или `places.json` (всички потребители ще изтеглят наново ~4 MB).
+- `sw.js` — офлайн. Код: мрежа първо, кеш при липса на връзка или „висяща“ мрежа (страница и prayer.json след 4 сек, JS/CSS след 10 сек), `qk-shell-vN`. Текст/шрифт: кеш първо в `qk-data-v1` —
+  увеличи го САМО при поправка на текст в `data/s/` или `places.json` (всички потребители ще изтеглят наново ~4 MB).
 
 ## Важни факти за времената (проверени)
 - Календарът на Мюфтийството = София + постоянна разлика за всеки град (всички 48 × 365 дни). Разликата ≈ 4 мин × (23.32 − дължина).
@@ -37,19 +39,19 @@
 
 ## Облачна сесия (claude.ai/code)
 - Изходящата мрежа е ограничена: grandmufti.bg, everyayah.com, quran.com са блокирани — update-prayer и check-reciters не могат да се пуснат там.
-  Достъпни са npm и raw.githubusercontent.com (оттам е турският превод).
+  Достъпни са npm и raw.githubusercontent.com.
 - НЕ ползвай `pkill -f <шаблон>` — съвпада и с текста на собствената команда и убива обвивката.
 - Тест в браузър: глобален Playwright (`NODE_PATH=/opt/node22/lib/node_modules`) + `node tools/serve.mjs 8931`;
   компасът се симулира с `new DeviceOrientationEvent('deviceorientationabsolute', { alpha, absolute: true })`.
 
 ## Тестове — `node tools/test/run.cjs` (Playwright; axe-core по желание)
-Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 51 проверки (~2 мин):
-- `regress.cjs` — всеки бъг от двата прегледа (часовник с `page.clock`, истинско аудио с генериран WAV вместо everyayah);
-- `features.cjs` — кибла (симулиран компас), турски превод, листове/фокус, axe, препълване при 320/390/1280, офлайн с изключен сървър.
+Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 55 проверки (~2 мин):
+- `regress.cjs` — всеки бъг от трите прегледа (часовник с `page.clock`, истинско аудио с генериран WAV вместо everyayah);
+- `features.cjs` — кибла (симулиран компас), превод и търсене, листове/фокус, axe, препълване при 320/390/1280, офлайн с изключен сървър.
 В облака: `NODE_PATH=/opt/node22/lib/node_modules node tools/test/run.cjs` (axe: `npm i axe-core` някъде и добави към NODE_PATH).
 update-prayer.mjs е проверен срещу имитиран grandmufti.bg (същата таблица / друга година / промяна в град) — скриптът не е в репото.
 
 ## Идеи за после
 - Известия за намаз (изискват push сървър или отворено приложение).
 - Тефсир, изтегляне на аудио офлайн.
-- Готово: Кибла компас, заучаване по диапазон айети, месечният GitHub Action, турски превод.
+- Готово: Кибла компас, заучаване по диапазон айети, месечният GitHub Action.

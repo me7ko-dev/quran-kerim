@@ -1,7 +1,7 @@
 // Service worker: приложението се отваря и без интернет.
 // Кодът — първо от мрежата (за да идват обновленията), текстът на Корана и шрифтът — от кеша.
 // Увеличи SHELL при промяна в кода, ако кешът пречи; DATA — само ако се поправи текст в data/s/ или places.json.
-const SHELL = 'qk-shell-v7';
+const SHELL = 'qk-shell-v8';
 const DATA = 'qk-data-v1';
 const SHELL_FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/audio.js', 'js/prayer.js', 'js/qibla.js', 'data/meta.json', 'data/prayer.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
@@ -31,18 +31,19 @@ self.addEventListener('fetch', e => {
     e.respondWith(cacheFirst(req, DATA, r => r.ok));
     return;
   }
-  // Всичко останало — мрежа първо, кешът при липса на връзка. Страницата и времената за намаз
-  // не чакат бавна мрежа над 4 сек; модулите (JS/CSS) — да, за да не се смеси стар и нов код.
+  // Всичко останало — мрежа първо, кешът при липса на връзка. При мрежа, която „виси“ (слаб сигнал):
+  // страницата и времената за намаз чакат до 4 сек, модулите (JS/CSS) — до 10 сек. По-дългото чакане
+  // за модулите пази от смесване на стар и нов код след обновяване, без приложението да остане празно.
   e.respondWith((async () => {
     const net = fetch(req).then(r => {
       if (r.ok) { const cl = r.clone(); caches.open(SHELL).then(c => c.put(req, cl)); }
       return r;
     });
     const cached = () => caches.match(req, { ignoreSearch: true });
-    const quick = req.mode === 'navigate' || url.pathname.endsWith('/data/prayer.json');
-    const slow = quick && new Promise(res => setTimeout(res, 4000)).then(async () => (await cached()) || net);
-    if (slow) slow.catch(() => {}); // грешката на мрежата се обработва по-долу
-    try { return await (slow ? Promise.race([net, slow]) : net); }
+    const wait = req.mode === 'navigate' || url.pathname.endsWith('/data/prayer.json') ? 4000 : 10000;
+    const slow = new Promise(res => setTimeout(res, wait)).then(async () => (await cached()) || net);
+    slow.catch(() => {}); // грешката на мрежата се обработва по-долу
+    try { return await Promise.race([net, slow]); }
     catch (err) {
       const hit = await cached();
       if (hit) return hit;
