@@ -2,6 +2,7 @@ import { store, isBookmarked, toggleBookmark } from './store.js';
 import { Player, RECITERS, reciterById } from './audio.js';
 import * as P from './prayer.js';
 import * as Q from './qibla.js';
+import { runIntro } from './intro.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = $('#view');
@@ -756,6 +757,7 @@ function renderSettings() {
       <div class="set-row"><p class="preview-ar" lang="ar">ٱلۡحَمۡدُ لِلَّهِ رَبِّ ٱلۡعَٰلَمِينَ ٢</p><div class="mid"><b>Арабски шрифт</b><small id="arV">${store.get('arSize')} px</small></div><input class="range" id="arR" type="range" min="22" max="64" value="${store.get('arSize')}" aria-label="Размер на арабския текст"></div>
       <div class="set-row"><p class="preview-tr">Хвала на Аллах, Господа на световете,</p><div class="mid"><b>Превод</b><small id="trV">${store.get('trSize')} px</small></div><input class="range" id="trR" type="range" min="13" max="28" value="${store.get('trSize')}" aria-label="Размер на превода"></div>
       <div class="set-row"><div class="mid"><b>Показвай превода</b><small>Под всеки айет в изгледа „айет по айет“</small></div>${sw('showTr', store.get('showTr'), 'Показвай превода')}</div>
+      <div class="set-row"><div class="mid"><b>Златният мусхаф при отваряне</b><small>Начален екран: „Бисмиллях“ отваря мусхафа. <a href="#/" id="introNow">Покажи сега</a></small></div>${sw('intro', store.get('intro'), 'Златният мусхаф при отваряне')}</div>
     </div>
     <div class="sub">Слушане</div>
     <div class="card set-group">
@@ -793,6 +795,7 @@ function renderSettings() {
     else store.set(k, on);
     if (k === 'autoNext') player.autoNext = on;
   });
+  $('#introNow').onclick = e => { e.preventDefault(); history.replaceState(null, '', '#/'); sessionStorage.qkIntro = 1; location.reload(); };
   $('#sRec').onclick = () => reciterSheet(renderSettings);
   $('#sPlace').onclick = placeSheet;
   offlineStatus();
@@ -858,6 +861,7 @@ setInterval(() => {
 applyPrefs();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyPrefs);
 render().then(railPrayer);
+runIntro().then(() => { if (route.name === 'home') view.focus({ preventScroll: true }); });
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

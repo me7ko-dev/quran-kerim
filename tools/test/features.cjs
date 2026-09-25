@@ -32,6 +32,29 @@ module.exports = async (b, { stopServer }) => {
     ok('търсене в българския превод', /^207 /.test(await p.textContent('#view p.muted')));
     await p.ctx.close(); }
 
+  console.log('Начален екран (златният мусхаф)');
+  { const p = await page(b, { intro: true });
+    const heard = []; p.on('request', r => { if (/everyayah/.test(r.url())) heard.push(r.url()); });
+    await p.goto(U); await p.waitForTimeout(800);
+    ok('показва се при отваряне на началото', await p.isVisible('#inBism'));
+    const [btn, a11] = await p.evaluate(async () => [document.querySelector('#inBism .ar').textContent, (await (await fetch('data/s/1.json')).json())[0][0]]);
+    ok('Бисмиллях на бутона е точно айет 1:1', a11.startsWith(btn + '\u00a0'));
+    await p.click('#inBism'); await p.waitForTimeout(400);
+    ok('„Бисмиллях“ пуска 1:1 от избрания рецитатор', heard.some(u => /Alafasy_128kbps\/001001\.mp3$/.test(u)));
+    await p.waitForTimeout(8500);
+    ok('след отварянето влиза в приложението', !(await p.$('#intro')) && await p.isVisible('#view .hero-title'));
+    await p.ctx.close(); }
+  { const p = await page(b, { intro: true });
+    await p.goto(U); await p.waitForTimeout(500); await p.click('#inSkip'); await p.waitForTimeout(1200);
+    ok('„Пропусни“ веднага влиза', !(await p.$('#intro')));
+    await p.goto(U + '#/s/2/255'); await p.reload(); await p.waitForTimeout(800);
+    ok('директна връзка към айет — без начален екран', !(await p.isVisible('#intro').catch(() => false)) && await p.isVisible('#a-255'));
+    await p.ctx.close(); }
+  { const p = await page(b, { intro: false });
+    await p.goto(U); await p.waitForTimeout(600);
+    ok('изключен от настройката — не се показва', !(await p.isVisible('#intro').catch(() => false)));
+    await p.ctx.close(); }
+
   console.log('Листове и достъпност');
   { const p = await page(b, { place: sofia }, { ctx: { viewport: { width: 1280, height: 860 } } });
     await p.goto(U + '#/s/1'); await p.waitForTimeout(1000);

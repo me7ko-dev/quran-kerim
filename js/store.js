@@ -5,6 +5,7 @@ const DEFAULTS = {
   arSize: 32,             // px, арабски текст
   trSize: 17,             // px, превод
   showTr: true,
+  intro: true,            // начален екран със златния мусхаф
   mode: 'ayah',           // ayah (айет по айет) | mushaf (непрекъснат текст)
   reciter: 'Alafasy_128kbps',
   rate: 1,

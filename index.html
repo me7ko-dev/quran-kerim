@@ -16,12 +16,60 @@
 <link rel="preload" href="fonts/UthmanicHafs.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/intro.css">
 <script>
   // тема преди първото рисуване, за да няма премигване
   try { const t = JSON.parse(localStorage.getItem('qk:v1') || '{}').theme; if (t && t !== 'auto') document.documentElement.dataset.theme = t; } catch (e) {}
+  // начален екран (златният мусхаф): само при отваряне на началото, не при директна връзка към айет/намаз
+  try { const s = JSON.parse(localStorage.getItem('qk:v1') || '{}'), h = location.hash; if ((s.intro !== false || sessionStorage.qkIntro) && (!h || h === '#' || h === '#/')) document.documentElement.classList.add('intro-on'); } catch (e) {}
 </script>
 </head>
 <body>
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-label="Куран-и Керим — начален екран">
+  <div class="in-pattern"></div><div class="in-rays"></div><div id="inStars"></div>
+  <button class="in-skip" id="inSkip" type="button">Пропусни</button>
+  <div class="in-stage" id="inStage">
+    <div class="in-glow"></div>
+    <div class="in-float">
+      <div class="book" aria-hidden="true">
+        <div class="bk-back"></div>
+        <div class="bk-spine"></div>
+        <div class="bk-edge l"></div><div class="bk-edge t"></div><div class="bk-edge b"></div>
+        <div class="bk-page"><div class="pg-frame"><div class="pg-head">سُورَةُ ٱلْفَاتِحَةِ</div><div class="pg-text" id="inFatiha"></div></div></div>
+        <div class="bk-cover">
+          <div class="cv-front">
+            <svg viewBox="0 0 200 280" preserveAspectRatio="none">
+              <defs>
+                <g id="cvOrn" fill="none" stroke-linejoin="round">
+                  <rect x="7" y="7" width="186" height="266" rx="5" stroke-width="2.2"/>
+                  <rect x="13" y="13" width="174" height="254" rx="3" stroke-width=".9"/>
+                  <path stroke-width="1.1" d="M13 40a27 27 0 0 0 27-27M187 40a27 27 0 0 1-27-27M13 240a27 27 0 0 1 27 27M187 240a27 27 0 0 0-27 27"/>
+                  <path stroke-width="1" d="M13 30a17 17 0 0 0 17-17M187 30a17 17 0 0 1-17-17M13 250a17 17 0 0 1 17 17M187 250a17 17 0 0 0-17 17"/>
+                  <rect x="45" y="85" width="110" height="110" stroke-width="1.8"/>
+                  <rect x="45" y="85" width="110" height="110" stroke-width="1.8" transform="rotate(45 100 140)"/>
+                  <circle cx="100" cy="140" r="52" stroke-width="1.3"/>
+                  <circle cx="100" cy="140" r="47" stroke-width=".7"/>
+                  <path stroke-width="1.2" d="M100 26c10 8 10 20 0 28-10-8-10-20 0-28zM82 40c8-2 14 0 18 0M118 40c-8-2-14 0-18 0M100 226c10 8 10 20 0 28-10-8-10-20 0-28zM82 240c8 2 14 0 18 0M118 240c-8 2-14 0-18 0"/>
+                  <path stroke-width=".8" d="M100 62v9M100 209v9M31 140h9M160 140h9"/>
+                  <circle cx="100" cy="40" r="3" stroke-width="1"/><circle cx="100" cy="240" r="3" stroke-width="1"/>
+                </g>
+              </defs>
+              <use href="#cvOrn" stroke="rgba(255,248,215,.85)" transform="translate(-.7 -.7)"/>
+              <use href="#cvOrn" stroke="#6b4a12"/>
+            </svg>
+            <div class="cv-title">القرآن الكريم</div>
+          </div>
+          <div class="cv-inside"></div>
+        </div>
+      </div>
+      <div class="bk-shadow"></div>
+    </div>
+  </div>
+  <div class="in-bottom">
+    <button class="in-bism" id="inBism" type="button"><span class="ar" lang="ar">بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ</span><small>Бисмилляхир-Рахманир-Рахим</small></button>
+    <p class="in-mean">В името на Аллах, Всемилостивия, Милосърдния!</p>
+  </div>
+</div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.5C10 5 7 4.5 3.5 5v13.5C7 18 10 18.5 12 20m0-13.5C14 5 17 4.5 20.5 5v13.5C17 18 14 18.5 12 20m0-13.5V20"/></symbol>

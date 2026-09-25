@@ -11,6 +11,10 @@
   `range` = заучаване: `playRange(s, from, to, each, loops)`, loops 0 = без край; не се пази в `play`, само `hifz: {each, loops}`.
 - `js/qibla.js` — посока по голям кръг, магнитно отклонение (линейна формула по NOAA WMM за 2026–2029, грешка < 0.06°), час „слънцето сочи киблата“, компас (iPhone: `webkitCompassHeading` + разрешение; Android: `deviceorientationabsolute`).
   Разрешение се иска само ако няма `ondeviceorientationabsolute` — Chrome/Edge 153+ също имат `requestPermission`.
+- `js/intro.js` + `css/intro.css` + маркировка в `index.html` — начален екран „златният мусхаф“ (CSS 3D, без библиотеки).
+  `<head>` слага `html.intro-on` само ако `intro !== false` и адресът е началото (директни връзки не се бавят).
+  „Бисмиллях“ пуска 1:1 от избрания рецитатор; корицата се отваря НАДЯСНО (гръбчето на мусхафа е вдясно);
+  страницата показва Фатиха от `data/s/1.json`, текстът на бутона е точно 1:1 (тестът го сверява). Тестовете слагат `intro: false`.
 - `js/prayer.js` — времена за намаз; `js/store.js` — настройки в localStorage (`qk:v1`).
 - `data/s/<n>.json` — `[арабски QPC Hafs, превод Теофанов, страница, джуз]` за всеки айет; `data/meta.json` — сури (имена на български) и джузове.
 - Само български превод (Теофанов). Турският (Диянет) беше добавен и махнат на 25.09.2026: старото издание (Tanzil/quran.com)
@@ -45,7 +49,7 @@
   компасът се симулира с `new DeviceOrientationEvent('deviceorientationabsolute', { alpha, absolute: true })`.
 
 ## Тестове — `node tools/test/run.cjs` (Playwright; axe-core по желание)
-Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 55 проверки (~2 мин):
+Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 62 проверки (~2,5 мин):
 - `regress.cjs` — всеки бъг от трите прегледа (часовник с `page.clock`, истинско аудио с генериран WAV вместо everyayah);
 - `features.cjs` — кибла (симулиран компас), превод и търсене, листове/фокус, axe, препълване при 320/390/1280, офлайн с изключен сървър.
 В облака: `NODE_PATH=/opt/node22/lib/node_modules node tools/test/run.cjs` (axe: `npm i axe-core` някъде и добави към NODE_PATH).

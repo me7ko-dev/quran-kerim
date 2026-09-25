@@ -30,7 +30,7 @@ async function page(b, state = {}, { audio = 'ok', clock, ctx: ctxOpt, route, in
   p.on('pageerror', e => results.errors.push(e.message));
   if (clock) await p.clock.install({ time: new Date(clock) });
   if (init) await p.addInitScript(init);
-  await p.addInitScript(s => { if (!sessionStorage.qkTest) { localStorage.setItem('qk:v1', JSON.stringify(s)); sessionStorage.qkTest = 1; } }, state);
+  await p.addInitScript(s => { if (!sessionStorage.qkTest) { localStorage.setItem('qk:v1', JSON.stringify({ intro: false, ...s })); sessionStorage.qkTest = 1; } }, state);
   return Object.assign(p, { ctx });
 }
 module.exports = { U, places, wav, ok, results, launch, page };
