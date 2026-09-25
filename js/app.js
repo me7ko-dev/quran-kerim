@@ -20,6 +20,35 @@ async function loadSurah(n) {
   return surahCache.get(n);
 }
 const S = n => META.surahs[n - 1];
+
+// ---------- преводи: български (Теофанов) и турски (Диянет) ----------
+const trCache = new Map();
+function loadTr(n) {
+  if (!trCache.has(n)) trCache.set(n, fetch(`data/tr/${n}.json`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(e => { trCache.delete(n); throw e; }));
+  return trCache.get(n);
+}
+const TR_LANGS = { bg: ['bg'], tr: ['tr'], both: ['bg', 'tr'] };
+const langs = () => TR_LANGS[store.get('trLang')] || TR_LANGS.bg;
+const TR_NAMES = { bg: 'Цветан Теофанов', tr: 'Diyanet İşleri' };
+const TR_DESC = { bg: 'превод на български', tr: 'превод на турски', both: 'превод на български и турски' };
+const TR_OPTS = [['bg', 'Български'], ['tr', 'Türkçe'], ['both', 'Двата']];
+let trWarned = false;
+// Сменя езика на превода; турският се изтегля тихо за четене без интернет
+function setTrLang(v) {
+  store.set('trLang', v); trWarned = false;
+  if (langs().includes('tr')) META.surahs.forEach((s, i) => setTimeout(() => loadTr(s.n).catch(() => {}), 400 + i * 40));
+}
+const trLangSeg = cls => `<div class="seg ${cls}" role="group" aria-label="Език на превода">${TR_OPTS.map(([k, t]) => `<button data-lang="${k}" class="${store.get('trLang') === k ? 'on' : ''}" aria-pressed="${store.get('trLang') === k}"${k === 'tr' ? ' lang="tr"' : ''}>${t}</button>`).join('')}</div>`;
+// Преводите на всеки айет от сура n в избраните езици: [[{ l, t }, …], …]
+async function translations(n, L = langs()) {
+  const ayahs = await loadSurah(n);
+  const tr = L.includes('tr') ? await loadTr(n).catch(() => null) : null;
+  const use = tr ? L : ['bg'];
+  if (!tr && L.includes('tr') && !trWarned) { trWarned = true; toast('Турският превод не се зареди — показан е българският'); }
+  return ayahs.map((a, i) => use.map(l => ({ l, t: l === 'bg' ? a[1] : tr[i] })));
+}
+const trHtml = (list, cls = 'tr-text') => list.map(x => `<p class="${cls}"${x.l === 'tr' ? ' lang="tr"' : ''}>${list.length > 1 ? `<span class="tr-lbl">${x.l.toUpperCase()}</span>` : ''}${esc(x.t)}</p>`).join('');
+const trPlain = list => list.map(x => x.t).join('\n\n');
 const BISM = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ';
 
 // ---------- тема и размери ----------
@@ -333,8 +362,8 @@ async function renderSurah() {
   view.innerHTML = `<div class="topbar"><button class="ib" onclick="history.length>1?history.back():location.hash='#/'" aria-label="Назад">${icon('chev-l')}</button><h1>${esc(m.name)}<small>${n}</small></h1>
     <button class="ib" id="tSize" aria-label="Размер на шрифта">${icon('text')}</button>
     <button class="ib" id="tView" aria-label="Изглед">${icon('book')}</button></div><div class="loader"></div>`;
-  let ayahs;
-  try { ayahs = await loadSurah(n); } catch (e) { if (route.name === 'surah' && route.s === n) view.querySelector('.loader').outerHTML = loadFail(); return; }
+  let ayahs, trs;
+  try { ayahs = await loadSurah(n); trs = await translations(n); } catch (e) { if (route.name === 'surah' && route.s === n) view.querySelector('.loader').outerHTML = loadFail(); return; }
   if (route.name !== 'surah' || route.s !== n) return;
   const mode = store.get('mode');
   const showTr = store.get('showTr');
@@ -362,7 +391,7 @@ async function renderSurah() {
         <button class="ib ${isBookmarked(n, i + 1) ? 'bm' : ''}" data-act="bm" aria-label="Отметка">${icon(isBookmarked(n, i + 1) ? 'bookmark-fill' : 'bookmark')}</button>
         <button class="ib" data-act="more" aria-label="Още">${icon('more')}</button></div>
       <p class="ar-text" lang="ar">${a[0]}</p>
-      <p class="tr-text">${esc(a[1])}</p></article>`).join('')}</div>`;
+      ${trHtml(trs[i])}</article>`).join('')}</div>`;
   }
   const prev = n > 1 ? S(n - 1) : null, next = n < 114 ? S(n + 1) : null;
   const nav = `<nav class="surah-nav">${prev ? `<a class="card" href="#/s/${n - 1}"><small>← Предишна</small><b>${esc(prev.name)}</b></a>` : '<span></span>'}${next ? `<a class="card" href="#/s/${n + 1}"><small>Следваща →</small><b>${esc(next.name)}</b></a>` : '<span></span>'}</nav>`;
@@ -415,11 +444,11 @@ function ayahClick(e) {
   } else ayahSheet(s, a);
 }
 async function ayahSheet(s, a) {
-  const ay = (await loadSurah(s))[a - 1];
+  const ay = (await loadSurah(s))[a - 1], tl = (await translations(s))[a - 1];
   const bm = isBookmarked(s, a);
   const b = openSheet(`<h3>${esc(S(s).name)} ${s}:${a}</h3>
     <p class="sheet-ar" lang="ar">${ay[0]}</p>
-    <p class="sheet-tr">${esc(ay[1])}</p>
+    ${trHtml(tl, 'sheet-tr')}
     <div class="acts-grid">
       <button class="act" data-x="one">${icon('play')}Чети само този</button>
       <button class="act" data-x="from">${icon('next')}Чети от тук нататък</button>
@@ -432,7 +461,7 @@ async function ayahSheet(s, a) {
     </div>`);
   b.onclick = async e => {
     const x = e.target.closest('[data-x]')?.dataset.x; if (!x) return;
-    const text = `${ay[0]}\n\n${ay[1]}\n\n— Коран, ${S(s).name} ${s}:${a}`;
+    const text = `${ay[0]}\n\n${trPlain(tl)}\n\n— Коран, ${S(s).name} ${s}:${a}`;
     if (x === 'one' || x === 'from' || x === 'rep') {
       const mode = { one: 'single', from: 'continue', rep: 'repeat' }[x];
       store.set('play', mode); closeSheet(); player.play(s, a, mode);
@@ -463,19 +492,28 @@ function sizeSheet() {
 function viewSheet() {
   const mode = store.get('mode'), tr = store.get('showTr');
   const b = openSheet(`<h3>Изглед</h3><div class="opt-list">
-    <button class="opt ${mode === 'ayah' && tr ? 'on' : ''}" data-v="ayah-tr">${icon('book')}<span class="mid"><b>Айет по айет с превод</b><small>Арабски текст и превод на български</small></span></button>
+    <button class="opt ${mode === 'ayah' && tr ? 'on' : ''}" data-v="ayah-tr">${icon('book')}<span class="mid"><b>Айет по айет с превод</b><small>Арабски текст и ${TR_DESC[store.get('trLang')] || TR_DESC.bg}</small></span></button>
     <button class="opt ${mode === 'ayah' && !tr ? 'on' : ''}" data-v="ayah">${icon('text')}<span class="mid"><b>Айет по айет, само арабски</b><small>С бутони за слушане на всеки айет</small></span></button>
     <button class="opt ${mode === 'mushaf' ? 'on' : ''}" data-v="mushaf">${icon('bookmark')}<span class="mid"><b>Мусхаф</b><small>Непрекъснат текст като в книгата. Докоснете айет за превод и слушане.</small></span></button>
-  </div>`);
-  b.querySelectorAll('[data-v]').forEach(x => x.onclick = () => {
-    const v = x.dataset.v;
-    store.set('mode', v === 'mushaf' ? 'mushaf' : 'ayah');
-    if (v !== 'mushaf') store.set('showTr', v === 'ayah-tr');
+  </div>
+  <div class="sub">Език на превода</div>${trLangSeg('full')}`);
+  const apply = () => {
     const keep = store.get('last');
     closeSheet();
     route = { name: 'x' };
     if (keep && keep.s === parse().s) history.replaceState(null, '', `#/s/${keep.s}/${keep.a}`);
     render();
+  };
+  b.querySelectorAll('[data-v]').forEach(x => x.onclick = () => {
+    const v = x.dataset.v;
+    store.set('mode', v === 'mushaf' ? 'mushaf' : 'ayah');
+    if (v !== 'mushaf') store.set('showTr', v === 'ayah-tr');
+    apply();
+  });
+  b.querySelectorAll('[data-lang]').forEach(x => x.onclick = () => {
+    setTrLang(x.dataset.lang);
+    if (store.get('mode') === 'ayah') store.set('showTr', true); // избран език → преводът да се вижда
+    apply();
   });
 }
 
@@ -484,15 +522,24 @@ async function renderSearch() {
   const q = route.q;
   view.innerHTML = `<div class="topbar"><button class="ib" onclick="history.back()" aria-label="Назад">${icon('chev-l')}</button><h1>Търсене<small>„${esc(q)}“</small></h1></div><div class="loader"></div>`;
   let all;
-  try { all = await Promise.all(META.surahs.map(s => loadSurah(s.n))); }
+  const L = [...new Set(['bg', ...langs()])]; // българският винаги — търсенето е на български
+  try { all = await Promise.all(META.surahs.map(s => translations(s.n, L))); }
   catch (e) { if (route.name === 'search') view.querySelector('.loader').outerHTML = loadFail(); return; }
   if (route.name !== 'search') return;
-  const nq = q.toLowerCase();
-  const res = [];
-  all.forEach((ays, i) => ays.forEach((a, j) => { if (a[1].toLowerCase().includes(nq)) res.push([i + 1, j + 1, a[1]]); }));
-  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  const res = []; // [сура, айет, [съвпаднали преводи]]
+  all.forEach((ays, i) => ays.forEach((list, j) => { const hit = list.filter(x => fold(x.t, x.l).includes(fold(q, x.l))); if (hit.length) res.push([i + 1, j + 1, hit]); }));
+  const many = L.length > 1;
   view.querySelector('.loader').outerHTML = `<p class="muted" style="margin:14px 2px">${plural(res.length, 'резултат', 'резултата')}${res.length > 300 ? ' (показани първите 300)' : ''}</p>` +
-    (res.slice(0, 300).map(([s, a, t]) => `<a class="card res-item" href="#/s/${s}/${a}"><span class="ayah-key">${esc(S(s).name)} ${s}:${a}</span><p>${esc(t).replace(re, m => `<mark>${m}</mark>`)}</p></a>`).join('') || `<div class="empty">Няма намерени айети.</div>`);
+    (res.slice(0, 300).map(([s, a, hit]) => `<a class="card res-item" href="#/s/${s}/${a}"><span class="ayah-key">${esc(S(s).name)} ${s}:${a}</span>${hit.map(x => `<p${x.l === 'tr' ? ' lang="tr"' : ''}>${many ? `<span class="tr-lbl">${x.l.toUpperCase()}</span>` : ''}${mark(x.t, q, x.l)}</p>`).join('')}</a>`).join('') || `<div class="empty">Няма намерени айети.</div>`);
+}
+// Сравнение без значение от главни/малки букви; за турски и „I/ı/İ/i“ се броят за едно
+const fold = (s, l) => l === 'tr' ? s.toLocaleLowerCase('tr').replace(/ı/g, 'i') : s.toLowerCase().replace(/ё/g, 'е');
+function mark(text, q, l) {
+  const T = fold(text, l), Q = fold(q, l);
+  if (!Q || T.length !== text.length) return esc(text); // позициите съвпадат само при еднаква дължина
+  let out = '', i = 0, k;
+  while ((k = T.indexOf(Q, i)) !== -1) { out += esc(text.slice(i, k)) + '<mark>' + esc(text.slice(k, k + Q.length)) + '</mark>'; i = k + Q.length; }
+  return out + esc(text.slice(i));
 }
 
 // ---------- отметки ----------
@@ -501,12 +548,12 @@ async function renderBookmarks() {
   view.innerHTML = `<div class="topbar"><h1>Отметки</h1></div><div id="bmList"><div class="loader"></div></div>`;
   if (!bms.length) { $('#bmList').innerHTML = `<div class="empty">${icon('bookmark')}<p>Още нямате отметки.<br>Докоснете знака за отметка до айет.</p></div>`; return; }
   let items;
-  try { items = await Promise.all(bms.map(async b => ({ ...b, ay: (await loadSurah(b.s))[b.a - 1] }))); }
+  try { items = await Promise.all(bms.map(async b => ({ ...b, ay: (await loadSurah(b.s))[b.a - 1], tl: (await translations(b.s))[b.a - 1] }))); }
   catch (e) { if ($('#bmList')) $('#bmList').innerHTML = loadFail(); return; }
   if (route.name !== 'bookmarks') return;
   $('#bmList').innerHTML = items.map(b => `<div class="card bm-item fade-in"><div class="top"><a class="ayah-key" href="#/s/${b.s}/${b.a}">${esc(S(b.s).name)} ${b.s}:${b.a}</a>
       <span><button class="ib" data-p="${b.s}:${b.a}" aria-label="Слушай">${icon('play')}</button><button class="ib" data-r="${b.s}:${b.a}" aria-label="Премахни">${icon('x')}</button></span></div>
-      <a href="#/s/${b.s}/${b.a}"><p class="ar-text" lang="ar">${b.ay[0]}</p><p class="tr-text" style="font-size:15px">${esc(b.ay[1])}</p></a></div>`).join('');
+      <a href="#/s/${b.s}/${b.a}"><p class="ar-text" lang="ar">${b.ay[0]}</p>${trHtml(b.tl)}</a></div>`).join('');
   $('#bmList').onclick = e => {
     const p = e.target.closest('[data-p]'), r = e.target.closest('[data-r]');
     if (p) { const [s, a] = p.dataset.p.split(':').map(Number); player.play(s, a, 'single'); }
@@ -707,6 +754,9 @@ function dialSvg(bearing) {
 }
 
 // ---------- настройки ----------
+const trWho = () => langs().map(l => TR_NAMES[l]).join(' · ');
+const TR_SAMPLE = { bg: 'Хвала на Аллах, Господа на световете,', tr: 'Hamd, Alemlerin Rabbi Allah\'a mahsustur' };
+const trPreview = () => langs().map(l => `<span${l === 'tr' ? ' lang="tr"' : ''}>${TR_SAMPLE[l]}</span>`).join('<br>');
 function renderSettings() {
   const sw = (k, on, label) => `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${on}" aria-label="${label}"></button>`;
   view.innerHTML = `<div class="topbar"><h1>Настройки</h1></div>
@@ -715,8 +765,9 @@ function renderSettings() {
     <div class="card set-group">
       <div class="set-row"><div class="mid"><b>Тема</b></div><div class="seg theme-seg">${[['auto', 'Авто'], ['light', 'Светла'], ['sepia', 'Сепия'], ['dark', 'Тъмна']].map(([k, t]) => `<button data-theme="${k}" class="${store.get('theme') === k ? 'on' : ''}" aria-pressed="${store.get('theme') === k}">${t}</button>`).join('')}</div></div>
       <div class="set-row"><p class="preview-ar" lang="ar">ٱلۡحَمۡدُ لِلَّهِ رَبِّ ٱلۡعَٰلَمِينَ ٢</p><div class="mid"><b>Арабски шрифт</b><small id="arV">${store.get('arSize')} px</small></div><input class="range" id="arR" type="range" min="22" max="64" value="${store.get('arSize')}" aria-label="Размер на арабския текст"></div>
-      <div class="set-row"><p class="preview-tr">Хвала на Аллах, Господа на световете,</p><div class="mid"><b>Превод</b><small id="trV">${store.get('trSize')} px</small></div><input class="range" id="trR" type="range" min="13" max="28" value="${store.get('trSize')}" aria-label="Размер на превода"></div>
-      <div class="set-row"><div class="mid"><b>Показвай превода</b><small>Превод на Цветан Теофанов</small></div>${sw('showTr', store.get('showTr'), 'Показвай превода')}</div>
+      <div class="set-row"><p class="preview-tr" id="trPrev">${trPreview()}</p><div class="mid"><b>Превод</b><small id="trV">${store.get('trSize')} px</small></div><input class="range" id="trR" type="range" min="13" max="28" value="${store.get('trSize')}" aria-label="Размер на превода"></div>
+      <div class="set-row"><div class="mid"><b>Език на превода</b><small id="trWho">${trWho()}</small></div>${trLangSeg('theme-seg')}</div>
+      <div class="set-row"><div class="mid"><b>Показвай превода</b><small>Под всеки айет в изгледа „айет по айет“</small></div>${sw('showTr', store.get('showTr'), 'Показвай превода')}</div>
     </div>
     <div class="sub">Слушане</div>
     <div class="card set-group">
@@ -737,12 +788,18 @@ function renderSettings() {
     <div class="card about">
       <b>Текст:</b> Мусхаф по рикаят на Хафс от Асим, шрифт KFGQPC Uthmanic Hafs (Комплекс „Крал Фахд“, Медина), чрез <a href="https://quran.com" target="_blank" rel="noopener">Quran.com</a>.<br>
       <b>Превод:</b> Цветан Теофанов — смислов превод на значенията на български.<br>
+      <b>Турски превод:</b> <span lang="tr">Diyanet İşleri</span> (мял на Президентството по религиозните въпроси на Турция), чрез <a href="https://tanzil.net/trans/" target="_blank" rel="noopener">Tanzil.net</a>.<br>
       <b>Аудио:</b> <a href="https://everyayah.com" target="_blank" rel="noopener">EveryAyah.com</a>.<br>
       <b>Времена за намаз:</b> официалният календар на <a href="https://www.grandmufti.bg/bg/home/vremena-za-namaz.html" target="_blank" rel="noopener">Главно мюфтийство</a>, проверяван автоматично всеки месец.<br>
       <b>Населени места:</b> © участниците в <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL).<br><br>
       Преводът предава смисъла и не замества арабския оригинал. Хиджри датата е изчислена (Умм ал-Кура) и може да се различава с ден от обявената от Мюфтийството.
     </div>
   </div>`;
+  view.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => {
+    setTrLang(b.dataset.lang);
+    view.querySelectorAll('[data-lang]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
+    $('#trWho').textContent = trWho(); $('#trPrev').innerHTML = trPreview(); offlineStatus();
+  });
   view.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); view.querySelectorAll('[data-theme]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }); });
   $('#arR').oninput = e => { store.set('arSize', +e.target.value); $('#arV').textContent = e.target.value + ' px'; applyPrefs(); };
   $('#trR').oninput = e => { store.set('trSize', +e.target.value); $('#trV').textContent = e.target.value + ' px'; applyPrefs(); };
@@ -766,13 +823,17 @@ async function offlineStatus() {
   const keys = name ? await (await caches.open(name)).keys() : [];
   if (!s.isConnected) return; // напуснал е Настройки
   const have = keys.filter(k => /\/data\/s\/\d+\.json$/.test(k.url)).length;
-  s.textContent = have >= 114 ? 'Изтеглен — четенето работи и без интернет (аудиото изисква връзка)' : `Изтеглени ${have} от 114 сури`;
-  if (have >= 114) $('#offB').hidden = true;
+  const needTr = langs().includes('tr'), haveTr = keys.filter(k => /\/data\/tr\/\d+\.json$/.test(k.url)).length;
+  const full = have >= 114 && (!needTr || haveTr >= 114);
+  s.textContent = full ? `Изтеглен${needTr ? ' с турския превод' : ''} — четенето работи и без интернет (аудиото изисква връзка)`
+    : `Изтеглени ${have} от 114 сури` + (needTr ? `, турски превод ${haveTr} от 114` : '');
+  $('#offB').hidden = full; $('#offB').disabled = false;
 }
 async function downloadAll() {
   const b = $('#offB'); b.disabled = true;
   let done = 0;
-  await Promise.all(META.surahs.map(s => loadSurah(s.n).then(() => { done++; if ($('#offS')) $('#offS').textContent = `Изтеглям… ${done}/114`; }).catch(() => {})));
+  const jobs = META.surahs.flatMap(s => [loadSurah(s.n), ...(langs().includes('tr') ? [loadTr(s.n)] : [])]);
+  await Promise.all(jobs.map(j => j.then(() => { done++; if ($('#offS')) $('#offS').textContent = `Изтеглям… ${Math.round(done / jobs.length * 100)}%`; }).catch(() => {})));
   setTimeout(offlineStatus, 500);
 }
 
@@ -806,4 +867,4 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 // тихо изтегляне на целия текст за офлайн, когато браузърът е свободен
-(window.requestIdleCallback || setTimeout)(() => { if (navigator.connection?.saveData) return; loadMeta().then(() => META.surahs.forEach((s, i) => setTimeout(() => loadSurah(s.n).catch(() => {}), 3000 + i * 60))); }, { timeout: 8000 });
+(window.requestIdleCallback || setTimeout)(() => { if (navigator.connection?.saveData) return; loadMeta().then(() => META.surahs.forEach((s, i) => setTimeout(() => { loadSurah(s.n).catch(() => {}); if (langs().includes('tr')) loadTr(s.n).catch(() => {}); }, 3000 + i * 60))); }, { timeout: 8000 });

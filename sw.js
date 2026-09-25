@@ -1,7 +1,7 @@
 // Service worker: приложението се отваря и без интернет.
 // Кодът — първо от мрежата (за да идват обновленията), текстът на Корана и шрифтът — от кеша.
-// Увеличи SHELL при промяна в кода, ако кешът пречи; DATA — само ако се поправи текст в data/s/ или places.json.
-const SHELL = 'qk-shell-v3';
+// Увеличи SHELL при промяна в кода, ако кешът пречи; DATA — само ако се поправи текст в data/s/, data/tr/ или places.json.
+const SHELL = 'qk-shell-v4';
 const DATA = 'qk-data-v1';
 const SHELL_FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/audio.js', 'js/prayer.js', 'js/qibla.js', 'data/meta.json', 'data/prayer.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
@@ -31,7 +31,7 @@ self.addEventListener('fetch', e => {
   }
   if (url.origin !== location.origin) return; // аудиото минава направо
   // Текстът на сурите, населените места и шрифтът не се променят
-  if (/\/data\/(s\/\d+|places)\.json$/.test(url.pathname) || url.pathname.endsWith('.woff2')) {
+  if (/\/data\/(s\/\d+|tr\/\d+|places)\.json$/.test(url.pathname) || url.pathname.endsWith('.woff2')) {
     e.respondWith(cacheFirst(req, DATA, r => r.ok));
     return;
   }
