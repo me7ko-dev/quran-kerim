@@ -6,3 +6,4 @@ tools/quran-full.json
 tools/dy-*.json
 tools/wb*.html
 node_modules/
+tools/dy-pages/

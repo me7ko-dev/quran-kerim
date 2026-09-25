@@ -252,7 +252,6 @@ body.playing main { padding-bottom: calc(var(--tab) + 110px); }
 .tr-text { font-size: var(--trs); line-height: 1.65; margin: 10px 0 0; color: var(--text); opacity: .88; }
 .hide-tr .tr-text { display: none; }
 .tr-text + .tr-text { margin-top: 8px; }
-.tr-lbl { display: inline-block; margin-right: 8px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px; font: 700 10.5px/1.5 var(--ui); letter-spacing: .5px; color: var(--accent); background: var(--accent-soft); }
 .bm-item .tr-text { font-size: 15px; }
 
 .mushaf {

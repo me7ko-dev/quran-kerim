@@ -1,4 +1,4 @@
-// Кибла, турски превод, листове (фокус), оформление, достъпност (axe, ако е инсталиран) и офлайн
+// Кибла, превод и търсене, листове (фокус), оформление, достъпност (axe, ако е инсталиран) и офлайн
 const { U, places, ok, page } = require('./helpers.cjs');
 const { sofia, ribnovo } = places;
 let axe = null; try { axe = require('axe-core'); } catch (e) {}
@@ -24,21 +24,12 @@ module.exports = async (b, { stopServer }) => {
     ok('компютър: без бутон за компас, показва посоката с думи', !(await p.$('#qStart')) && /югоизток/.test(await p.textContent('#qStatus')));
     await p.ctx.close(); }
 
-  console.log('Турски превод');
-  { const p = await page(b, { trLang: 'both' });
+  console.log('Превод и търсене');
+  { const p = await page(b, {});
     await p.goto(U + '#/s/1'); await p.waitForTimeout(1200);
-    ok('двата превода под айета', (await p.$$eval('#a-1 .tr-text', ps => ps.map(x => x.getAttribute('lang') || 'bg').join())) === 'bg,tr');
-    await p.goto(U + '#/search/ISLAM'); await p.waitForTimeout(3000);
-    ok('търсене: ISLAM намира „İslam“ (I/ı/İ/i)', /^8 /.test(await p.textContent('#view p.muted')));
-    await p.goto(U + '#/settings'); await p.waitForTimeout(600); await p.click('[data-lang=tr]');
-    await p.goto(U + '#/s/1'); await p.waitForTimeout(1000);
-    ok('само турски', (await p.$$eval('#a-1 .tr-text', ps => ps.map(x => x.getAttribute('lang') || 'bg').join())) === 'tr');
+    ok('един (български) превод под айета', (await p.$$eval('#a-1 .tr-text', ps => ps.length)) === 1 && !(await p.$('[data-lang]')));
     await p.goto(U + '#/search/милост'); await p.waitForTimeout(2500);
-    ok('търсенето винаги включва и българския', /^207 /.test(await p.textContent('#view p.muted')));
-    await p.ctx.close(); }
-  { const p = await page(b, { trLang: 'tr' }, { route: [/\/data\/tr\//, r => r.abort()] });
-    await p.goto(U + '#/s/2'); await p.waitForTimeout(1200);
-    ok('липсващ турски файл → българският с едно съобщение', (await p.$eval('#a-1 .tr-text', x => x.getAttribute('lang'))) === null && /Турският/.test(await p.textContent('#toast')));
+    ok('търсене в българския превод', /^207 /.test(await p.textContent('#view p.muted')));
     await p.ctx.close(); }
 
   console.log('Листове и достъпност');

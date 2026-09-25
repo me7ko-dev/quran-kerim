@@ -1,7 +1,7 @@
 // Service worker: приложението се отваря и без интернет.
 // Кодът — първо от мрежата (за да идват обновленията), текстът на Корана и шрифтът — от кеша.
-// Увеличи SHELL при промяна в кода, ако кешът пречи; DATA — само ако се поправи текст в data/s/, data/tr/ или places.json.
-const SHELL = 'qk-shell-v6';
+// Увеличи SHELL при промяна в кода, ако кешът пречи; DATA — само ако се поправи текст в data/s/ или places.json.
+const SHELL = 'qk-shell-v7';
 const DATA = 'qk-data-v1';
 const SHELL_FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/audio.js', 'js/prayer.js', 'js/qibla.js', 'data/meta.json', 'data/prayer.json', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 

@@ -5,7 +5,6 @@ const DEFAULTS = {
   arSize: 32,             // px, арабски текст
   trSize: 17,             // px, превод
   showTr: true,
-  trLang: 'bg',           // bg (Теофанов) | tr (Диянет) | both
   mode: 'ayah',           // ayah (айет по айет) | mushaf (непрекъснат текст)
   reciter: 'Alafasy_128kbps',
   rate: 1,
