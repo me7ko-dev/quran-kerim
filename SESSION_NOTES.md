@@ -1,4 +1,4 @@
-# Бележки от сесиите (обновено 2026-09-25, втора сесия)
+# Бележки от сесиите (обновено 2026-09-28 — Android/Google Play)
 
 > Прочети това вместо да преглеждаш репото наново. Докъде сме стигнали и какво следва: [NEXT_SESSION.md](NEXT_SESSION.md).
 
@@ -47,6 +47,17 @@
 - `serve.mjs` — локален сървър (порт 8765 е зает от друго, ползвай 8931).
 - `fetch-quran.mjs`, `split-quran.mjs`, `build-places.mjs`, `fetch-muftiate.mjs`, `fit.mjs`… — еднократни, за пресъздаване на данните.
 
+## Android приложение (TWA, Google Play) — от 28.09.2026
+- Пакетът е в `~/Projects/quran-kerim-android` (ИЗВЪН репото — там е `android.keystore`); инструкции за нова версия в неговия README.md.
+- Package `bg.me7ko.qurankerim`, Bubblewrap 1.25, target SDK 36, minSdk 21. Съдържанието идва от сайта — промени по сайта НЕ изискват нова версия в Play.
+- Проверката на домейна: https://me7ko-dev.github.io/.well-known/assetlinks.json (репо `me7ko-dev/me7ko-dev.github.io`, с `.nojekyll`).
+  Там трябват ДВА SHA-256: на ключа за качване (`43:6A:00:EC:…:08:F1`) и на ключа на Google от Play Console → App integrity.
+  Ако липсва вторият, приложението от Play показва адресна лента.
+- `privacy.html` — политика за поверителност за Play (не събираме данни; местоположението само на устройството).
+  Ако приложението започне да праща данни някъде (анализ, известия през сървър), обнови я и Data safety в Play Console.
+- Снимки за Play: `tools/cdp-shot.mjs` с 540×960 (×2 = 1080×1920); настройките в localStorage се задават и презареждат
+  в същото пускане (при отделни пускания Edge не успява да ги запише).
+
 ## Облачна сесия (claude.ai/code)
 - Изходящата мрежа е ограничена: grandmufti.bg, everyayah.com, quran.com са блокирани — update-prayer и check-reciters не могат да се пуснат там.
   Достъпни са npm и raw.githubusercontent.com.
@@ -58,6 +69,7 @@
 Сам пуска сървър на свободен порт; на Windows без Chromium ползва Edge. 62 проверки (~2,5 мин):
 - `regress.cjs` — всеки бъг от трите прегледа (часовник с `page.clock`, истинско аудио с генериран WAV вместо everyayah);
 - `features.cjs` — кибла (симулиран компас), превод и търсене, листове/фокус, axe, препълване при 320/390/1280, офлайн с изключен сървър.
+На лаптопа (Git Bash): `NODE_PATH="$(npm root -g)" node tools/test/run.cjs` — Playwright е глобален, без NODE_PATH не се намира.
 В облака: `NODE_PATH=/opt/node22/lib/node_modules node tools/test/run.cjs` (axe: `npm i axe-core` някъде и добави към NODE_PATH).
 update-prayer.mjs е проверен срещу имитиран grandmufti.bg (същата таблица / друга година / промяна в град) — скриптът не е в репото.
 
