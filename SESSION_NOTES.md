@@ -49,10 +49,10 @@
 
 ## Android приложение (TWA, Google Play) — от 28.09.2026
 - Пакетът е в `~/Projects/quran-kerim-android` (ИЗВЪН репото — там е `android.keystore`); инструкции за нова версия в неговия README.md.
-- Package `bg.me7ko.qurankerim`, Bubblewrap 1.25, target SDK 36, minSdk 21. Съдържанието идва от сайта — промени по сайта НЕ изискват нова версия в Play.
+- Package `bg.quran.app` (съществуващото „Quran BG“ в Play, преименувано на „Куран-и Керим“), Bubblewrap 1.25, target SDK 36, minSdk 21.
+  Ключът за качване е сменен на нашия (заявка от 28.09.2026, чака одобрение); ключът на Google (App signing) е `84:A8:…:A6:2B`. Съдържанието идва от сайта — промени по сайта НЕ изискват нова версия в Play.
 - Проверката на домейна: https://me7ko-dev.github.io/.well-known/assetlinks.json (репо `me7ko-dev/me7ko-dev.github.io`, с `.nojekyll`).
-  Там трябват ДВА SHA-256: на ключа за качване (`43:6A:00:EC:…:08:F1`) и на ключа на Google от Play Console → App integrity.
-  Ако липсва вторият, приложението от Play показва адресна лента.
+  В него са и двата SHA-256: на ключа на Google (`84:A8:…`) и на нашия ключ за качване (`43:6A:…:08:F1`, за APK директно).
 - `privacy.html` — политика за поверителност за Play (не събираме данни; местоположението само на устройството).
   Ако приложението започне да праща данни някъде (анализ, известия през сървър), обнови я и Data safety в Play Console.
 - Снимки за Play: `tools/cdp-shot.mjs` с 540×960 (×2 = 1080×1920); настройките в localStorage се задават и презареждат
