@@ -25,7 +25,7 @@ const APP = {
 };
 
 const APP_EN = {
-  name: 'Quran-i Kerim',
+  name: 'Quran Kareem',
   tagline: 'The Quran in Arabic with 25 reciters,<br>memorisation, qibla and prayer times',
   headline: 'Point your phone<br>and read the Quran for free',
   feats: [
@@ -35,7 +35,7 @@ const APP_EN = {
     ['Qibla', 'the direction with your phone’s compass'],
   ],
   note: 'No personal data collected. Translation in Bulgarian.',
-  title: 'Quran-i Kerim – the Quran with 25 reciters',
+  title: 'Quran Kareem – the Quran with 25 reciters',
   description: 'Free: the Quran in Arabic with 25 reciters, memorisation, qibla and prayer times for Bulgaria. No ads.',
 };
 

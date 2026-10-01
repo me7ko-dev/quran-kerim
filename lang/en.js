@@ -2,9 +2,9 @@
 // Проверка: node tools/check-i18n.cjs en. Значенията на сурите: Quran.com (chapters?language=en), сверени с AlQuran.cloud.
 export default {
   // ----- общи -----
-  'Куран-и Керим': 'Quran-i Kerim',
-  'Куран-и Керим – Коранът с превод на български': 'Quran-i Kerim – the Quran with a Bulgarian translation',
-  'Куран-и Керим — начален екран': 'Quran-i Kerim — start screen',
+  'Куран-и Керим': 'Quran Kareem',
+  'Куран-и Керим – Коранът с превод на български': 'Quran Kareem – the Quran with a Bulgarian translation',
+  'Куран-и Керим — начален екран': 'Quran Kareem — start screen',
   'Безплатно приложение: Коранът на арабски с превод на български, 25 рецитатори, времена за намаз за всяко място в България и посока на кибла. Без реклами.': 'Free app: the Quran in Arabic with a Bulgarian translation, 25 reciters, prayer times for every place in Bulgaria and the qibla direction. No ads.',
   'Коран': 'Quran',
   'Намаз': 'Prayer',
@@ -47,7 +47,7 @@ export default {
   'Започва: {x}': 'Starts: {x}',
   'Няма сура с това име.': 'No surah with that name.',
   'Търси „{q}“ в превода': 'Search “{q}” in the translation',
-  'Сподели Куран-и Керим с приятел': 'Share Quran-i Kerim with a friend',
+  'Сподели Куран-и Керим с приятел': 'Share Quran Kareem with a friend',
   'Мека': 'Mecca',
   'Медина': 'Medina',
 
