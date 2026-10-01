@@ -6,7 +6,7 @@
 
 Работи на телефон, таблет и компютър и чете текста без интернет.
 
-**Репо:** https://github.com/me7ko-dev/quran-kerim · **Папка на компютъра:** `C:\Users\roika\Projects\quran-kerim`
+**Репо:** https://github.com/me7ko-dev/quran-kerim
 
 ## Инсталиране и споделяне
 
