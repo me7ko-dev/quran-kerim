@@ -4,8 +4,6 @@
 // най-близкия официален град и добавяме разликата по географска дължина (4 мин на градус) —
 // същото правило, по което Мюфтийството изчислява градовете си.
 
-import { lang, t } from './i18n.js';
-
 export const PRAYERS = [
   { key: 'fajr', bg: 'Зора', tr: 'Имсак', ic: '✦' },
   { key: 'sunrise', bg: 'Изгрев', tr: 'Гюнеш', ic: '☀' },
@@ -79,7 +77,7 @@ export function timesFor(place, y, m, d, villageMode = 'corrected') {
 // Кога за последно е сверен календарът с grandmufti.bg (обновява се от GitHub Actions)
 export function checkedOn() {
   const m = data && /^(\d{4})-(\d{2})-(\d{2})$/.exec(data.checked || '');
-  return m ? `${+m[3]}.${m[2]}.${m[1]}` + (lang === 'bg' ? ' г.' : '') : '';
+  return m ? `${+m[3]}.${m[2]}.${m[1]} г.` : '';
 }
 
 export const fmt = min => { min = ((min % 1440) + 1440) % 1440; return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`; };
@@ -105,25 +103,12 @@ export function nextPrayer(place, villageMode) {
 
 export function placeLabel(p) {
   if (!p) return '';
-  if (lang !== 'bg') return latin(p.name);
   return (p.type === 0 ? 'гр.\u00a0' : 'с.\u00a0') + p.name; // без пренасяне след „с.“
 }
 export function placeSub(p) {
   if (!p) return '';
-  if (lang !== 'bg') {
-    const o = p.obl === 'София-град' ? t('София-град') : t('обл. {x}', { x: latin(p.obl) });
-    return p.obs && p.obs !== p.name ? t('общ. {x}', { x: latin(p.obs) }) + ', ' + o : o;
-  }
   const obl = p.obl === 'София-град' ? 'София-град' : 'обл. ' + p.obl;
   return p.obs && p.obs !== p.name ? `общ. ${p.obs}, ${obl}` : obl;
-}
-
-// Име на латиница по официалната транслитерация: София → Sofia, Търново → Tarnovo
-export function latin(s) {
-  return String(s).replace(/ия(?![а-яА-Я])/g, 'ia').replace(/[а-яА-Я]/g, c => {
-    const lo = c.toLowerCase(), r = TR[lo] ?? c;
-    return c === lo ? r : r.charAt(0).toUpperCase() + r.slice(1);
-  });
 }
 
 // Търсене на населено място (на кирилица или латиница)
@@ -163,7 +148,6 @@ const HM = ['Мухаррем', 'Сафер', 'Ребиул-евел', 'Реби
 export function hijri(date = new Date()) {
   try {
     const p = Object.fromEntries(new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Europe/Sofia' }).formatToParts(date).map(x => [x.type, x.value]));
-    if (lang !== 'bg') return t('{d} {m} {y} г. х.', { d: +p.day, m: t(HM[+p.month - 1]), y: parseInt(p.year) });
     return `${+p.day} ${HM[+p.month - 1]} ${parseInt(p.year)}\u00a0г.\u00a0х.`;
   } catch (e) { return ''; }
 }

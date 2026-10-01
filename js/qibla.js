@@ -20,9 +20,8 @@ export function declination(p, date = new Date()) {
   return 5.888 + 0.117 * (p.lon - 25) + 0.1665 * (p.lat - 42.7) + 0.0623 * yr;
 }
 
-import { t } from './i18n.js';
 const DIRS = ['север', 'североизток', 'изток', 'югоизток', 'юг', 'югозапад', 'запад', 'северозапад'];
-export const dirName = b => t(DIRS[Math.round(b / 45) % 8]);
+export const dirName = b => DIRS[Math.round(b / 45) % 8];
 
 // Слънчева позиция (NOAA / Meeus), същият алгоритъм като tools/sun.mjs
 function sunDecEqt(ms) {

@@ -1,4 +1,3 @@
-import { t } from './i18n.js';
 // Аудио по айети от EveryAyah.com (безплатни записи на известни рецитатори)
 export const RECITERS = [
   { id: 'Alafasy_128kbps', name: 'Мишари Рашид ал-Афаси', note: 'Кувейт · муреттел' },
@@ -180,7 +179,7 @@ export class Player extends EventTarget {
     const m = this.meta(this.cur.s);
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: `${m.name} ${this.cur.s}:${this.cur.a}`, artist: t(reciterById(this.reciter).name), album: t('Куран-и Керим'),
+        title: `${m.name} ${this.cur.s}:${this.cur.a}`, artist: reciterById(this.reciter).name, album: 'Куран-и Керим',
         artwork: [{ src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }],
       });
     } catch (e) {}

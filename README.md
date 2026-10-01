@@ -16,13 +16,6 @@
 - **QR код:** https://me7ko-dev.github.io/quran-kerim/share/qr.png
 - **Плакат A4 за печат:** https://me7ko-dev.github.io/quran-kerim/share/plakat-a4.pdf
 
-## Езици
-
-- **Български** – основен. **Английски** – интерфейсът, имената и значенията на сурите, рецитаторите, времената за намаз, киблата. Преводът на Корана засега е само на български (Теофанов).
-- Линк на английски (с английска визитка за групите): https://me7ko-dev.github.io/quran-kerim/en/
-- Изборът е в Настройки → „Език · Language“, с бутона до датата на началния екран или с `?lang=en` в адреса.
-- Следващите езици: турски, албански, босненски, немски.
-
 ## Какво може
 
 - **Начален екран** — златен мусхаф; „Бисмиллях“ го отваря с 3D анимация и светлина (изключва се от Настройки).
@@ -67,8 +60,5 @@ node tools/cdp-shot.mjs <url> out.png  # снимка като на телефо
 node tools/test/run.cjs              # 62 браузърни теста (нужен е Playwright: npm i -g playwright)
 node tools/test-pwa.cjs              # „Инсталирай“ и „Сподели“ на телефон и компютър
 node tools/make-share.cjs            # прави наново share/og.jpg, qr.svg, qr.png, plakat-a4.pdf (npm i -g qrcode)
-node tools/make-share.cjs en         # същото на английски + страницата en/index.html
-node tools/check-i18n.cjs en         # всеки текст от кода да има превод в lang/en.js
-node tools/test-i18n.cjs en          # всеки екран на английски, без забравен български текст
 ```
 В Git Bash Playwright и qrcode се намират с `NODE_PATH="$(npm root -g)"` пред `node`.
