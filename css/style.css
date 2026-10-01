@@ -522,3 +522,9 @@ html:has(.pw-sheet[open]) { overflow: hidden; }
 @media (max-width: 420px) { .pw-qr { flex-direction: column; text-align: center; } .pw-qr img { width: 150px; height: 150px; } }
 .hero > .pw-card { margin-top: 0; }
 .pw-share { width: 100%; margin-top: 18px; }
+
+/* ---------- смяна на езика (js/i18n.js) ---------- */
+.hero-side { display: grid; justify-items: end; gap: 8px; }
+.lang-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.lang-btn:hover { color: var(--text); border-color: var(--gold); }
+.lang-btn .ic { width: 16px; height: 16px; }
