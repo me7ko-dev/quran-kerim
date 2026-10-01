@@ -4,7 +4,17 @@
 
 **Отвори:** https://me7ko-dev.github.io/quran-kerim/
 
-Работи на телефон, таблет и компютър. Може да се инсталира като приложение („Добави към началния екран“) и чете текста без интернет.
+Работи на телефон, таблет и компютър и чете текста без интернет.
+
+**Репо:** https://github.com/me7ko-dev/quran-kerim · **Папка на компютъра:** `C:\Users\roika\Projects\quran-kerim`
+
+## Инсталиране и споделяне
+
+- **Без Google Play:** бутонът „Инсталирай“ (на началния екран и в Настройки). Android, Chrome и Edge показват истинския прозорец за инсталиране; на iPhone излиза картинка „Сподели → Добави към началния екран“.
+- **Google Play:** „Куран-и Керим“ (`bg.quran.app`) – засега в затворено тестване, виж [GOOGLE_PLAY.md](GOOGLE_PLAY.md).
+- **Споделяне:** бутонът „Сподели“ – менюто на телефона или Viber, WhatsApp, Facebook, Telegram и QR код. Линкът се показва със снимка: https://me7ko-dev.github.io/quran-kerim/share/og.jpg
+- **QR код:** https://me7ko-dev.github.io/quran-kerim/share/qr.png
+- **Плакат A4 за печат:** https://me7ko-dev.github.io/quran-kerim/share/plakat-a4.pdf
 
 ## Какво може
 
@@ -48,4 +58,7 @@ node tools/update-prayer.mjs         # обнови времената от gran
 node tools/check-reciters.mjs        # провери, че аудиото на рецитаторите е налично
 node tools/cdp-shot.mjs <url> out.png  # снимка като на телефон (Edge headless)
 node tools/test/run.cjs              # 62 браузърни теста (нужен е Playwright: npm i -g playwright)
+node tools/test-pwa.cjs              # „Инсталирай“ и „Сподели“ на телефон и компютър
+node tools/make-share.cjs            # прави наново share/og.jpg, qr.svg, qr.png, plakat-a4.pdf (npm i -g qrcode)
 ```
+В Git Bash Playwright и qrcode се намират с `NODE_PATH="$(npm root -g)"` пред `node`.

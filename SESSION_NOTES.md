@@ -60,6 +60,15 @@
 - Снимки за Play: `tools/cdp-shot.mjs` с 540×960 (×2 = 1080×1920); настройките в localStorage се задават и презареждат
   в същото пускане (при отделни пускания Edge не успява да ги запише).
 
+## „Инсталирай“ и „Сподели“ — от 01.10.2026 (промпт 2: Муаллим и Куран-и Керим за света)
+- `js/pwa.js` е **еднакъв с ../muallim/js/pwa.js** — подробностите са в muallim/SESSION_NOTES.md (сесия 3). При промяна копирай файла в двете репота.
+- Карта на началото (между „Продължете“ и търсенето), раздел „Сподели и инсталирай“ в Настройки, „Сподели“ най-долу на началото, когато картата я няма.
+- В Google Play приложението (TWA) картата не се показва: `document.referrer` е `android-app://bg.quran.app` → `sessionStorage.pwStore`. „Сподели“ там отваря менюто на Android с линка към сайта.
+- `beforeinstallprompt` се хваща в `<head>` на index.html. **index.html има смесени краища на редове (CRLF + един CR CR LF)** — редакторът ги изглажда и git показва целия файл като променен; вмъквай с node и запазвай байтовете.
+- Open Graph + `share/` (og.jpg, qr.svg, qr.png, plakat-a4.pdf) — `node tools/make-share.cjs`; тест: `node tools/test-pwa.cjs` (35 проверки). И двата с `NODE_PATH="$(npm root -g)"` в Git Bash.
+- Кешът: `qk-shell-v12` (+ `js/pwa.js`).
+- Анонимното „инсталирано“ за брояча на Метко Стор още НЕ е сложено. Когато се сложи: обнови `privacy.html` и Data safety в Play Console.
+
 ## Облачна сесия (claude.ai/code)
 - Изходящата мрежа е ограничена: grandmufti.bg, everyayah.com, quran.com са блокирани — update-prayer и check-reciters не могат да се пуснат там.
   Достъпни са npm и raw.githubusercontent.com.

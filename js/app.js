@@ -3,6 +3,7 @@ import { Player, RECITERS, reciterById } from './audio.js';
 import * as P from './prayer.js';
 import * as Q from './qibla.js';
 import { runIntro } from './intro.js';
+import { setupPwa, installCard, settingsRows, shareButton } from './pwa.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const view = $('#view');
@@ -276,6 +277,7 @@ let homeTab = 'surah';
 async function renderHome() {
   const now = new Date();
   const last = store.get('last');
+  const card = installCard();
   view.innerHTML = `<div class="fade-in">
     <header class="hero">
       <div class="hero-head">
@@ -284,6 +286,7 @@ async function renderHome() {
       </div>
       <a class="next-card" href="#/prayer" id="nextCard"><div class="lbl">${icon('clock')} Времена за намаз</div><div class="row"><span class="nm">Изберете населено място</span></div><div class="cd">Всеки град и село в България</div></a>
       ${last ? `<a class="card continue" href="#/s/${last.s}/${last.a}"><span class="ic-wrap">${icon('book')}</span><div><small>Продължете четенето</small><b>${esc(S(last.s).name)}</b> <span class="muted">· айет ${last.a}</span></div>${icon('chev-r')}</a>` : ''}
+      ${card}
       <label class="search">${icon('search')}<input id="q" type="search" placeholder="Сура, 2:255 или дума…" autocomplete="off" enterkeyhint="search"></label>
     </header>
     <div class="list-head">
@@ -292,6 +295,7 @@ async function renderHome() {
     </div>
     <div class="grid" id="list"></div>
     <div id="searchMore"></div>
+    ${card ? '' : shareButton('Сподели Куран-и Керим с приятел')}
   </div>`;
   const list = $('#list');
   const drawSurahs = (q = '') => {
@@ -774,6 +778,8 @@ function renderSettings() {
     <div class="card set-group">
       <div class="set-row"><div class="mid"><b>Целият Коран на устройството</b><small id="offS">Проверявам…</small></div><button class="btn ghost" id="offB">${icon('download')}Изтегли</button></div>
     </div>
+    <div class="sub">Сподели и инсталирай</div>
+    <div class="card set-group">${settingsRows()}</div>
     <div class="sub">За приложението</div>
     <div class="card about">
       <b>Текст:</b> Мусхаф по рикаят на Хафс от Асим, шрифт KFGQPC Uthmanic Hafs (Комплекс „Крал Фахд“, Медина), чрез <a href="https://quran.com" target="_blank" rel="noopener">Quran.com</a>.<br>
@@ -858,6 +864,11 @@ setInterval(() => {
 }, 15000);
 
 // ---------- старт ----------
+setupPwa({
+  id: 'qk', name: 'Куран-и Керим', url: 'https://me7ko-dev.github.io/quran-kerim/', toast,
+  title: 'Куран-и Керим – Коранът с превод на български',
+  text: 'Безплатно приложение: Коранът на арабски с превод на български, 25 рецитатори, времена за намаз за всяко място в България и посока на кибла. Без реклами.',
+});
 applyPrefs();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyPrefs);
 render().then(railPrayer);

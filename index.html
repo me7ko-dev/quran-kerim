@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Куран-и Керим</title>
 <meta name="description" content="Свещеният Коран на арабски с превод на български, рецитатори и времена за намаз за всяко населено място в България.">
+<link rel="canonical" href="https://me7ko-dev.github.io/quran-kerim/">
+<!-- визитката при споделяне във Viber, Facebook, WhatsApp, Telegram (снимката: node tools/make-share.cjs) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Куран-и Керим">
+<meta property="og:locale" content="bg_BG">
+<meta property="og:url" content="https://me7ko-dev.github.io/quran-kerim/">
+<meta property="og:title" content="Куран-и Керим – Коранът с превод на български">
+<meta property="og:description" content="Безплатно: Коранът на арабски с превод на български, 25 рецитатори, времена за намаз за всяко място в България и кибла. Без реклами.">
+<meta property="og:image" content="https://me7ko-dev.github.io/quran-kerim/share/og.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Куран-и Керим – Коранът с превод на български">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0c2a23" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f7f1e3" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -22,6 +36,8 @@
   try { const t = JSON.parse(localStorage.getItem('qk:v1') || '{}').theme; if (t && t !== 'auto') document.documentElement.dataset.theme = t; } catch (e) {}
   // начален екран (златният мусхаф): само при отваряне на началото, не при директна връзка към айет/намаз
   try { const s = JSON.parse(localStorage.getItem('qk:v1') || '{}'), h = location.hash; if ((s.intro !== false || sessionStorage.qkIntro) && (!h || h === '#' || h === '#/')) document.documentElement.classList.add('intro-on'); } catch (e) {}
+  // прозорецът за инсталиране може да дойде преди js/pwa.js – пазим го за бутона „Инсталирай“
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.__bip = e; });
 </script>
 </head>
 <body>
